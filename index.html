@@ -17,25 +17,25 @@
 <div class="box">
     <h1>🔮 今日運勢占卜</h1>
     <div id="result">點擊下方按鈕，看看你的運勢</div>
-    <button onclick="drawFortune()">點我抽籤</button>
+    <button onclick="drawFortune()">點我占卜</button>
 </div>
 
 <script>
     const fortunes = [
-        "✨ 大吉：萬事如意，好運爆棚！",
-        "🌈 中吉：平穩順利，小有驚喜。",
-        "🍃 小吉：生活微甜，適合散心。",
-        "☀️ 吉：平凡之中自有確幸。",
-        "☁️ 末吉：稍微努力，就會好轉。",
-        "☕ 凶：今日宜低調，多喝熱水。",
-        "⏳ 大凶：否極泰來，明天會更好！"
+        "✨大吉！",
+        "中吉",
+        "小吉",
+        "吉",
+        "末吉",
+        "凶",
+        "大凶！"
     ];
 
     function drawFortune() {
         const result = document.getElementById('result');
         result.innerText = "🌀 正在感知命運中...";
         
-        // 延遲 500 毫秒增加儀式感
+        
         setTimeout(() => {
             const index = Math.floor(Math.random() * fortunes.length);
             result.innerText = fortunes[index];
