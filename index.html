@@ -131,17 +131,24 @@
     }
 
     function startLeaderboard() {
-        if (db) {
-            db.collection("players").orderBy("totalAsset", "desc").limit(5).onSnapshot(snap => {
-                let html = "🏆 財富榜：<br>";
-                snap.forEach(d => {
-                    const data = d.data();
-                    html += `• ${data.name}: $${Math.floor(data.totalAsset)}<br>`;
-                });
-                document.getElementById('rank-list').innerHTML = html;
-            });
+    if (!db) return;
+    db.collection("players").orderBy("totalAsset", "desc").limit(8)
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+            document.getElementById('rank-list').innerHTML = "目前尚無玩家數據，快來搶佔第一名！";
+            return;
         }
-    }
+        let html = "";
+        snap.forEach(d => {
+            const data = d.data();
+            html += `<div class="rank-item"><span>${data.name}</span><b class="up">$${Math.floor(data.totalAsset || 0)}</b></div>`;
+        });
+        document.getElementById('rank-list').innerHTML = html;
+      }, (error) => {
+        console.error("排行榜讀取出錯:", error);
+        document.getElementById('rank-list').innerHTML = "排行榜讀取失敗";
+      });
+}
 
     window.nextDay = function() {
         g.day++; g.lastPrice = g.price;
