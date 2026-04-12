@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>投資模擬器 - 自動存檔版</title>
+    <style>
+        body { font-family: sans-serif; background: #0f172a; color: white; text-align: center; margin: 0; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; margin: auto; position: relative; }
+        .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 10px 0; }
+        #stock-price { font-size: 40px; font-weight: bold; }
+        #stock-percent { font-size: 20px; font-weight: bold; }
+        #game-chart { width: 100%; height: 180px; background: #000; border-radius: 8px; margin: 15px 0; border: 1px solid #334155; }
+        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-box { background: #334155; padding: 10px; border-radius: 8px; }
+        .up { color: #22c55e; }
+        .down { color: #ef4444; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button { padding: 15px; font-size: 16px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-next { grid-column: span 2; background: #38bdf8; color: #0f172a; margin-bottom: 5px; }
+        .btn-buy { background: #22c55e; color: white; }
+        .btn-sell { background: #ef4444; color: white; }
+        .reset-link { color: #64748b; font-size: 12px; margin-top: 20px; display: block; cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div>Day <span id="display-day">1</span></div>
+        <div class="price-row">
+            <div id="stock-price">$100.00</div>
+            <div id="stock-percent">+0.00%</div>
+        </div>
+        
+        <canvas id="game-chart"></canvas>
+
+        <div class="stats">
+            <div class="stat-box">現金<br><span id="display-cash">$1000.00</span></div>
+            <div class="stat-box">持股<br><span id="display-shares">0</span></div>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn-next" onclick="doNextDay()">⏩ 下一天</button>
+            <button class="btn-buy" onclick="doBuy()">買入 1 股</button>
+            <button class="btn-sell" onclick="doSell()">全部賣出</button>
+        </div>
+
+        <span class="reset-link" onclick="resetAllData()">重置遊戲數據</span>
+    </div>
+
+<script>
+    // 遊戲數據變數
+    let sim_price, sim_lastPrice, sim_cash, sim_shares, sim_day, sim_dataPoints;
+
+    // --- 核心：存檔與讀檔邏輯 ---
+    function saveData() {
+        const gameData = {
+            price: sim_price,
+            lastPrice: sim_lastPrice,
+            cash: sim_cash,
+            shares: sim_shares,
+            day: sim_day,
+            dataPoints: sim_dataPoints
+        };
+        localStorage.setItem('investment_sim_save', JSON.stringify(gameData));
+    }
+
+    function loadData() {
+        const saved = localStorage.getItem('investment_sim_save');
+        if (saved) {
+            const data = JSON.parse(saved);
+            sim_price = data.price;
+            sim_lastPrice = data.lastPrice;
+            sim_cash = data.cash;
+            sim_shares = data.shares;
+            sim_day = data.day;
+            sim_dataPoints = data.dataPoints;
+        } else {
+            // 如果沒存檔，初始化預設值
+            initDefault();
+        }
+    }
+
+    function initDefault() {
+        sim_price = 100.0;
+        sim_lastPrice = 100.0;
+        sim_cash = 1000.0;
+        sim_shares = 0;
+        sim_day = 1;
+        sim_dataPoints = [100.0];
+    }
+
+    function resetAllData() {
+        if (confirm("確定要刪除所有進度重新開始嗎？")) {
+            localStorage.removeItem('investment_sim_save');
+            initDefault();
+            refreshUI();
+        }
+    }
+    // --------------------------
+
+    const canvas = document.getElementById('game-chart');
+    const ctx = canvas.getContext('2d');
+
+    function refreshUI() {
+        document.getElementById('stock-price').innerText = "$" + sim_price.toFixed(2);
+        document.getElementById('display-cash').innerText = "$" + sim_cash.toFixed(2);
+        document.getElementById('display-shares').innerText = sim_shares;
+        document.getElementById('display-day').innerText = sim_day;
+
+        const diff = sim_lastPrice === 0 ? 0 : ((sim_price - sim_lastPrice) / sim_lastPrice * 100);
+        const pEl = document.getElementById('stock-percent');
+        pEl.innerText = (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
+        pEl.className = "stock-percent " + (diff >= 0 ? "up" : "down");
+
+        drawSimChart(diff >= 0);
+        saveData(); // 每次 UI 更新都存檔一次
+    }
+
+    function drawSimChart(isUp) {
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        if (sim_dataPoints.length < 2) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const pad = 20;
+        const max = Math.max(...sim_dataPoints) * 1.1;
+        const min = Math.min(...sim_dataPoints) * 0.9;
+        const range = (max - min) || 1;
+        const color = isUp ? "#22c55e" : "#ef4444";
+
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        
+        for (let i = 0; i < sim_dataPoints.length; i++) {
+            const x = (i / (sim_dataPoints.length - 1)) * (canvas.width - pad * 2) + pad;
+            const y = canvas.height - ((sim_dataPoints[i] - min) / range * (canvas.height - pad * 2) + pad);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+    }
+
+    function doNextDay() {
+        sim_day++;
+        sim_lastPrice = sim_price;
+        const vol = (Math.random() * 0.24 - 0.12); // 波動幅度
+        const pull = (100 - sim_price) * 0.08 / 100; // 均值回歸
+        sim_price = sim_price * (1 + vol + pull);
+        if (sim_price < 5) sim_price = 5;
+
+        sim_dataPoints.push(sim_price);
+        if (sim_dataPoints.length > 25) sim_dataPoints.shift();
+        refreshUI();
+    }
+
+    function doBuy() {
+        if (sim_cash >= sim_price) {
+            sim_cash -= sim_price;
+            sim_shares += 1;
+            refreshUI();
+        }
+    }
+
+    function doSell() {
+        if (sim_shares > 0) {
+            sim_cash += sim_shares * sim_price;
+            sim_shares = 0;
+            refreshUI();
+        }
+    }
+
+    window.onload = function() {
+        loadData();
+        refreshUI();
+    };
+</script>
+</body>
+</html>
