@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>聯網投資模擬器 - 破局版</title>
-    <!-- 使用最基礎的相容庫 -->
+    <title>投資模擬器 - 雲端診斷版</title>
+
+    <!-- 使用最穩定的官方連結，並加上版本號 -->
     <script src="https://gstatic.com"></script>
     <script src="https://gstatic.com"></script>
+
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
-        .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 400px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 300px; }
         input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
         canvas { width: 100%; height: 140px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
-        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 12px; transition: 0.1s; }
-        button:active { transform: scale(0.95); opacity: 0.8; }
+        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; transition: 0.1s; padding: 12px; }
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 18px; margin-bottom: 10px; }
-        .btn-trade { background: var(--up); width: 100%; padding: 10px; }
-        #rank-list { text-align: left; font-size: 13px; background: #0a101e; padding: 10px; border-radius: 10px; margin-top: 15px; min-height: 50px; }
-        .rank-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #222; }
+        #debug-log { font-size: 10px; color: #64748b; margin-top: 10px; text-align: left; background: #000; padding: 5px; border-radius: 5px; max-height: 60px; overflow: auto; }
     </style>
 </head>
 <body>
@@ -30,28 +29,30 @@
             <h2 style="color:var(--blue);">🎮 市場連線中</h2>
             <input type="text" id="username-input" placeholder="輸入暱稱...">
             <button class="btn-next" id="login-btn" onclick="startGame()">登入遊戲</button>
-            <div id="status-msg" style="color: #94a3b8; font-size: 12px; margin-top: 10px;">等待輸入...</div>
+            <div id="status-msg" style="color: #94a3b8; font-size: 12px; margin-top: 10px;">系統初始化中...</div>
+            <div id="debug-log">Debug: 等待指令</div>
         </div>
     </div>
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8;">
-            <span>玩家: <b id="p-name">---</b></span>
+            <span id="conn-icon" style="color: #ef4444;">● 離線</span>
+            <span id="player-display">玩家: ---</span>
             <span>DAY <b id="display-day">1</b></span>
         </div>
         <div style="font-size:32px; font-weight:bold; margin:10px 0;">$<span id="stock-price">100.00</span></div>
         <canvas id="game-chart"></canvas>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
             <div style="background:#334155; padding:8px; border-radius:8px;">現金: $<span id="display-cash">1000</span></div>
             <div style="background:#334155; padding:8px; border-radius:8px;">持股: <span id="display-shares">0</span></div>
         </div>
         <button class="btn-next" onclick="handleNextDay()">⏩ 進入下一天</button>
-        <button class="btn-trade" onclick="handleTrade()">全倉交易 (買入/賣出)</button>
-        <div id="rank-list">🏆 排行榜載入中...</div>
+        <button style="background:var(--up); width:100%; padding:10px; border-radius:8px;" onclick="handleTrade()">全倉交易 (買/賣)</button>
+        <div id="rank-list" style="text-align:left; font-size:12px; margin-top:15px; background:#0a101e; padding:10px; border-radius:10px;">🏆 排行榜載入中...</div>
     </div>
 
 <script>
-    // 1. Firebase 配置 (保持不變)
+    // --- 1. 配置與診斷 ---
     const firebaseConfig = {
         apiKey: "AIzaSyB8jlZ8rYpb6AQuqw5WQtYoRq2PKYMmXAU",
         authDomain: "://firebaseapp.com",
@@ -61,123 +62,103 @@
         appId: "1:776634078002:web:b9bd8e6ee9d8be52157d2b"
     };
 
-    var db;
-    var g = { name: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
+    let db = null;
+    let g = { name: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
 
-    // 2. 啟動 Firebase
-    try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        console.log("Firebase 連結成功");
-    } catch (e) {
-        console.error("Firebase 初始化失敗", e);
+    function log(msg) {
+        document.getElementById('debug-log').innerText += "\n> " + msg;
     }
 
-    // 3. 遊戲核心函數 (強制綁定到 window)
-    window.startGame = async function() {
-        const name = document.getElementById('username-input').value.trim();
-        if (name.length < 2) return alert("暱稱太短了");
-        g.name = name;
-
-        const status = document.getElementById('status-msg');
-        status.innerText = "正在讀取雲端數據...";
-
-        try {
-            // 嘗試從資料庫拿資料
-            const userRef = db.collection("players").doc(g.name);
-            const doc = await userRef.get();
-            
-            if (doc.exists) {
-                const data = doc.data();
-                g.cash = data.cash || 1000;
-                g.shares = data.shares || 0;
-                g.day = data.day || 1;
-                g.price = data.price || 100;
-                g.history = data.history || [100];
-            } else {
-                // 新玩家，直接建立
-                await db.collection("players").doc(g.name).set({
-                    name: g.name,
-                    totalAsset: 1000,
-                    lastUpdate: Date.now()
-                });
+    // 初始化
+    window.onload = function() {
+        log("檢查 Firebase 資源...");
+        if (typeof firebase !== 'undefined') {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                log("Firebase 連結成功！");
+                document.getElementById('status-msg').innerText = "雲端已就緒";
+                document.getElementById('conn-icon').innerText = "● 雲端連線";
+                document.getElementById('conn-icon').style.color = "#22c55e";
+            } catch (e) {
+                log("初始化失敗: " + e.message);
             }
-            
-            // 進入遊戲
-            document.getElementById('auth-overlay').style.display = "none";
-            document.getElementById('p-name').innerText = g.name;
-            updateUI();
-            startLeaderboard();
-        } catch (err) {
-            console.error(err);
-            status.innerText = "連線失敗，請檢查網路或資料庫規則";
-            // 如果連不上，也讓玩家進去玩單機版
-            setTimeout(() => {
-                document.getElementById('auth-overlay').style.display = "none";
-                document.getElementById('p-name').innerText = g.name + " (離線)";
-                updateUI();
-            }, 2000);
+        } else {
+            log("連不上 Google 伺服器，改用單機模式");
+            document.getElementById('status-msg').innerText = "離線模式運行";
         }
     };
 
-    async function syncData() {
+    // --- 2. 登入 ---
+    window.startGame = async function() {
+        const name = document.getElementById('username-input').value.trim();
+        if (name.length < 2) return alert("暱稱太短");
+        g.name = name;
+
+        if (db) {
+            log("正在與雲端同步玩家: " + g.name);
+            try {
+                const doc = await db.collection("players").doc(g.name).get();
+                if (doc.exists) {
+                    g = Object.assign(g, doc.data());
+                    log("已找到雲端存檔");
+                } else {
+                    log("建立新玩家數據");
+                    await syncToCloud();
+                }
+                startLeaderboard();
+            } catch (e) {
+                log("連線被資料庫擋住: " + e.message);
+            }
+        }
+
+        document.getElementById('auth-overlay').style.display = "none";
+        document.getElementById('player-display').innerText = "玩家: " + g.name;
+        refreshUI();
+    };
+
+    async function syncToCloud() {
         if (!db || !g.name) return;
         try {
             const total = g.cash + (g.shares * g.price);
             await db.collection("players").doc(g.name).set({
-                name: g.name,
-                cash: g.cash,
-                shares: g.shares,
-                day: g.day,
-                price: g.price,
-                history: g.history,
-                totalAsset: total,
-                lastUpdate: Date.now()
+                ...g, totalAsset: total, lastUpdate: Date.now()
             });
-        } catch (e) { console.error("同步失敗", e); }
+        } catch (e) { log("同步失敗"); }
     }
 
     function startLeaderboard() {
-        db.collection("players").orderBy("totalAsset", "desc").limit(5)
-          .onSnapshot((snap) => {
-            let html = "🏆 全服排行榜：<br>";
-            if (snap.empty) {
-                html += "尚無數據";
-            } else {
-                snap.forEach(d => {
-                    const data = d.data();
-                    html += `<div class="rank-item"><span>${data.name}</span><b>$${Math.floor(data.totalAsset || 0)}</b></div>`;
-                });
-            }
+        if (!db) return;
+        db.collection("players").orderBy("totalAsset", "desc").limit(5).onSnapshot(snap => {
+            let html = "🏆 排行榜：<br>";
+            snap.forEach(d => {
+                const data = d.data();
+                html += `<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid #222;">
+                            <span>${data.name}</span><b>$${Math.floor(data.totalAsset || 0)}</b>
+                         </div>`;
+            });
             document.getElementById('rank-list').innerHTML = html;
+        }, err => {
+            log("排行讀取失敗: " + err.message);
         });
     }
 
+    // --- 3. 遊戲邏輯 ---
     window.handleNextDay = function() {
-        g.day++;
-        g.lastPrice = g.price;
-        g.price *= (1 + (Math.random() * 0.28 - 0.14) + (100 - g.price) * 0.08 / 100);
+        g.day++; g.lastPrice = g.price;
+        g.price *= (1 + (Math.random()*0.28-0.14) + (100-g.price)*0.08/100);
         if (g.price < 5) g.price = 5;
-        g.history.push(g.price);
-        if (g.history.length > 20) g.history.shift();
-        updateUI();
-        syncData();
+        g.history.push(g.price); if (g.history.length > 20) g.history.shift();
+        refreshUI(); syncToCloud();
     };
 
     window.handleTrade = function() {
-        if (g.cash >= g.price) {
-            let q = Math.floor(g.cash / g.price);
-            g.cash -= q * g.price;
-            g.shares += q;
-        } else if (g.shares > 0) {
-            g.cash += g.shares * g.price;
-            g.shares = 0;
-        }
-        updateUI();
-        syncData();
+        if (g.cash >= g.price) { let q = Math.floor(g.cash/g.price); g.cash -= q*g.price; g.shares += q; }
+        else if (g.shares > 0) { g.cash += g.shares*g.price; g.shares = 0; }
+        refreshUI(); syncToCloud();
     };
 
-    function updateUI() {
+    function refreshUI() {
         document.getElementById('stock-price').innerText = g.price.toFixed(2);
         document.getElementById('display-cash').innerText = Math.floor(g.cash);
         document.getElementById('display-shares').innerText = g.shares;
@@ -186,17 +167,14 @@
     }
 
     function drawChart() {
-        const c = document.getElementById('game-chart');
-        const t = c.getContext('2d');
+        const c = document.getElementById('game-chart'); const t = c.getContext('2d');
         c.width = c.offsetWidth; c.height = c.offsetHeight;
-        const max = Math.max(...g.history, 110) * 1.1;
-        const min = Math.min(...g.history, 90) * 0.9;
-        t.clearRect(0,0,c.width,c.height);
-        t.beginPath(); t.strokeStyle = "#38bdf8"; t.lineWidth = 3;
+        const max = Math.max(...g.history, 110)*1.1, min = Math.min(...g.history, 90)*0.9;
+        t.clearRect(0,0,c.width,c.height); t.beginPath(); t.strokeStyle = "#38bdf8"; t.lineWidth = 3;
         g.history.forEach((p, i) => {
-            const x = (i / (g.history.length - 1 || 1)) * (c.width - 40) + 20;
-            const y = c.height - ((p - min) / (max - min || 1) * (c.height - 40) + 20);
-            if (i === 0) t.moveTo(x, y); else t.lineTo(x, y);
+            const x = (i/(g.history.length-1 || 1))*(c.width-40)+20;
+            const y = c.height-((p-min)/(max-min || 1)*(c.height-40)+20);
+            if(i===0) t.moveTo(x,y); else t.lineTo(x,y);
         });
         t.stroke();
     }
