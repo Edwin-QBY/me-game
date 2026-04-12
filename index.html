@@ -3,40 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器-V1.3</title>
+    <title>聯網投資模擬器 - 雲端版</title>
     <style>
-        :root { --up-color: #22c55e; --down-color: #ef4444; --bg-color: #0f172a; --card-bg: #1e293b; }
-        body { font-family: -apple-system, sans-serif; background: var(--bg-color); color: white; text-align: center; margin: 0; padding: 10px; }
-        .card { background: var(--card-bg); padding: 15px; border-radius: 20px; width: 100%; max-width: 450px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
+        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
+        .card { background: var(--card); padding: 15px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* 登入遮罩 */
+        #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .auth-box { background: var(--card); padding: 30px; border-radius: 20px; width: 80%; max-width: 300px; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: none; font-size: 16px; }
+        
+        /* 價格顯示 */
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
         #stock-price { font-size: 36px; font-weight: 800; }
         #stock-percent { font-size: 18px; font-weight: bold; }
-        canvas { width: 100%; height: 150px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
-        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #334155; padding: 8px; border-radius: 10px; }
-        .stat-label { font-size: 12px; color: #94a3b8; }
-        .stat-val { font-size: 16px; font-weight: bold; }
-        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .trade-col { display: flex; flex-direction: column; gap: 6px; }
-        .trade-label { font-size: 14px; font-weight: bold; padding: 4px; border-radius: 4px; }
-        button { border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.1s; color: white; padding: 10px 5px; font-size: 13px; }
-        button:active { transform: scale(0.95); opacity: 0.8; }
-        button:disabled { opacity: 0.15 !important; cursor: not-allowed; }
-        .btn-next { width: 100%; padding: 12px; font-size: 16px; background: #38bdf8; color: #0f172a; margin-bottom: 10px; border-radius: 10px; }
-        .btn-buy { background: var(--up-color); }
-        .btn-sell { background: var(--down-color); }
-        .log-container { margin-top: 20px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; height: 150px; overflow-y: auto; border: 1px solid #334155; }
-        .log-title { font-size: 12px; color: #64748b; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 3px; }
-        .log-item { font-size: 12px; font-family: monospace; margin-bottom: 3px; border-bottom: 1px dashed #222; padding: 2px 0; }
-        .up { color: var(--up-color); }
-        .down { color: var(--down-color); }
-        .reset-link { color: #475569; font-size: 11px; margin-top: 15px; display: block; cursor: pointer; }
+        canvas { width: 100%; height: 140px; background: #000; border-radius: 12px; margin: 10px 0; }
+
+        /* 排行榜 */
+        #leaderboard { background: #0a101e; border-radius: 12px; padding: 10px; margin-top: 20px; text-align: left; }
+        .rank-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #222; font-size: 13px; }
+        .rank-name { color: var(--blue); }
+
+        /* 按鈕樣式 */
+        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; }
+        .btn-next { width: 100%; padding: 15px; background: var(--blue); color: #0f172a; font-size: 18px; margin-bottom: 10px; }
+        .btn-buy { background: var(--up); }
+        .btn-sell { background: var(--down); }
+        .trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .col { display: flex; flex-direction: column; gap: 5px; }
+        .up { color: var(--up); } .down { color: var(--down); }
     </style>
 </head>
 <body>
 
+    <!-- 登入介面 -->
+    <div id="auth-overlay">
+        <div class="auth-box">
+            <h2>📈 歡迎加入市場</h2>
+            <p style="font-size: 12px; color: #94a3b8;">請輸入暱稱來儲存雲端數據</p>
+            <input type="text" id="username-input" placeholder="您的暱稱...">
+            <button class="btn-next" onclick="login()">開始獲利</button>
+        </div>
+    </div>
+
+    <!-- 遊戲介面 -->
     <div class="card">
-        <div style="font-size: 12px; color: #94a3b8;">MARKET DAY <span id="display-day">1</span></div>
+        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8;">
+            <span>玩家: <b id="p-name" style="color:white;">---</b></span>
+            <span>DAY <b id="display-day" style="color:white;">1</b></span>
+        </div>
+
         <div class="price-row">
             <div id="stock-price">$100.00</div>
             <div id="stock-percent">+0.00%</div>
@@ -44,174 +61,155 @@
         
         <canvas id="game-chart"></canvas>
 
-        <div class="stats">
-            <div class="stat-box">
-                <div class="stat-label">可用現金</div>
-                <div class="stat-val">$<span id="display-cash">1000.00</span></div>
+        <div style="display: flex; justify-content: space-around; background: #334155; padding: 10px; border-radius: 10px; margin-bottom: 10px;">
+            <div>現金: $<span id="display-cash">1000</span></div>
+            <div>持股: <span id="display-shares">0</span></div>
+        </div>
+
+        <button class="btn-next" onclick="nextDay()">⏩ 進入下一天</button>
+
+        <div class="trade-grid">
+            <div class="col">
+                <div style="font-size:12px; color:var(--up);">買入</div>
+                <button class="btn-buy" onclick="trade('buy', 1)">1股</button>
+                <button class="btn-buy" onclick="trade('buy', 10)">10股</button>
+                <button class="btn-buy" onclick="trade('buy', 'all')">全倉</button>
             </div>
-            <div class="stat-box">
-                <div class="stat-label">持有股數</div>
-                <div class="stat-val"><span id="display-shares">0</span></div>
+            <div class="col">
+                <div style="font-size:12px; color:var(--down);">賣出</div>
+                <button class="btn-sell" onclick="trade('sell', 1)">1股</button>
+                <button class="btn-sell" onclick="trade('sell', 10)">10股</button>
+                <button class="btn-sell" onclick="trade('sell', 'all')">全賣</button>
             </div>
         </div>
 
-        <button class="btn-next" onclick="doNextDay()">⏩ 進入下一天 (Next Day)</button>
-
-        <div class="trade-panel">
-            <div class="trade-col">
-                <div class="trade-label" style="background: rgba(34, 197, 94, 0.1); color: var(--up-color);">買入 BUY</div>
-                <button class="btn-buy" id="buy-1" onclick="tradeStock('buy', 1)">買入 1 股</button>
-                <button class="btn-buy" id="buy-10" onclick="tradeStock('buy', 10)">買入 10 股</button>
-                <button class="btn-buy" id="buy-all" onclick="tradeStock('buy', 'all')">全倉買入</button>
-            </div>
-            <div class="trade-col">
-                <div class="trade-label" style="background: rgba(239, 68, 68, 0.1); color: var(--down-color);">賣出 SELL</div>
-                <button class="btn-sell" id="sell-1" onclick="tradeStock('sell', 1)">賣出 1 股</button>
-                <button class="btn-sell" id="sell-10" onclick="tradeStock('sell', 10)">賣出 10 股</button>
-                <button class="btn-sell" id="sell-all" onclick="tradeStock('sell', 'all')">全部賣出</button>
-            </div>
+        <!-- 排行榜 -->
+        <div id="leaderboard">
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 5px; border-bottom: 1px solid #334155;">🏆 全球總資產排行榜</div>
+            <div id="rank-list">載入中...</div>
         </div>
-
-        <div class="log-container">
-            <div class="log-title">交易紀錄 (TRANSACTION LOG)</div>
-            <div id="log-list"></div>
-        </div>
-
-        <span class="reset-link" onclick="resetGameData()">重置所有數據 (Reset All)</span>
     </div>
 
-<script>
-    // 使用明確的變數初始化，避免語法錯誤導致按鈕失效
-    let sim_price = 100.0;
-    let sim_lastPrice = 100.0;
-    let sim_cash = 1000.0;
-    let sim_shares = 0;
-    let sim_day = 1;
-    let sim_dataPoints = [100.0];
-    let sim_logs = [];
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://gstatic.com";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, onSnapshot } from "https://gstatic.com";
 
-    const canvas = document.getElementById('game-chart');
-    const ctx = canvas.getContext('2d');
-
-    function saveToLocal() {
-        const data = { 
-            p: sim_price, lp: sim_lastPrice, c: sim_cash, 
-            s: sim_shares, d: sim_day, dp: sim_dataPoints, l: sim_logs 
+        const firebaseConfig = {
+            apiKey: "AIzaSyB8jlZ8rYpb6AQuqw5WQtYoRq2PKYMmXAU",
+            authDomain: "mygame-5ef71.firebaseapp.com",
+            projectId: "mygame-5ef71",
+            storageBucket: "mygame-5ef71.firebasestorage.app",
+            messagingSenderId: "776634078002",
+            appId: "1:776634078002:web:36722175848f2beb157d2b"
         };
-        localStorage.setItem('inv_sim_final_v1', JSON.stringify(data));
-    }
 
-    function loadFromLocal() {
-        const saved = localStorage.getItem('inv_sim_final_v1');
-        if (saved) {
-            try {
-                const d = JSON.parse(saved);
-                sim_price = d.p || 100;
-                sim_lastPrice = d.lp || 100;
-                sim_cash = d.c || 1000;
-                sim_shares = d.s || 0;
-                sim_day = d.d || 1;
-                sim_dataPoints = d.dp || [100];
-                sim_logs = d.l || [];
-            } catch(e) {
-                console.error("Load failed", e);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 遊戲變數
+        let g = { name: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
+
+        // --- 登入邏輯 ---
+        window.login = async function() {
+            const name = document.getElementById('username-input').value.trim();
+            if (name.length < 2) return alert("暱稱太短了");
+            g.name = name;
+            
+            // 嘗試從雲端讀取
+            const userRef = doc(db, "players", g.name);
+            const userSnap = await getDoc(userRef);
+            
+            if (userSnap.exists()) {
+                g = { ...g, ...userSnap.data() };
+                alert("歡迎回來，" + g.name + "！已同步雲端進度。");
+            } else {
+                alert("建立新玩家：" + g.name);
             }
+            
+            document.getElementById('auth-overlay').style.display = "none";
+            document.getElementById('p-name').innerText = g.name;
+            refreshUI();
+            startLeaderboard();
+        };
+
+        // --- 雲端儲存 ---
+        async function syncCloud() {
+            if (!g.name) return;
+            const total = g.cash + (g.shares * g.price);
+            await setDoc(doc(db, "players", g.name), {
+                ...g,
+                totalAsset: total,
+                lastUpdate: Date.now()
+            });
         }
-    }
 
-    function refreshUI() {
-        document.getElementById('stock-price').innerText = "$" + sim_price.toFixed(2);
-        document.getElementById('display-cash').innerText = sim_cash.toFixed(2);
-        document.getElementById('display-shares').innerText = sim_shares;
-        document.getElementById('display-day').innerText = sim_day;
-
-        const diff = ((sim_price - sim_lastPrice) / sim_lastPrice * 100);
-        const pEl = document.getElementById('stock-percent');
-        pEl.innerText = (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
-        pEl.className = diff >= 0 ? "up" : "down";
-
-        // 按鈕狀態
-        document.getElementById('buy-1').disabled = sim_cash < sim_price;
-        document.getElementById('buy-10').disabled = sim_cash < (sim_price * 10);
-        document.getElementById('buy-all').disabled = sim_cash < sim_price;
-        document.getElementById('sell-1').disabled = sim_shares < 1;
-        document.getElementById('sell-10').disabled = sim_shares < 10;
-        document.getElementById('sell-all').disabled = sim_shares < 1;
-
-        // 紀錄列表
-        document.getElementById('log-list').innerHTML = sim_logs.map(item => `<div class="log-item">${item}</div>`).join('');
-
-        drawChart(diff >= 0);
-        saveToLocal();
-    }
-
-    function drawChart(isUp) {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        if (sim_dataPoints.length < 2) return;
-        const pad = 20;
-        const max = Math.max(...sim_dataPoints) * 1.05;
-        const min = Math.min(...sim_dataPoints) * 0.95;
-        const range = (max - min) || 1;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.beginPath();
-        ctx.strokeStyle = isUp ? "#22c55e" : "#ef4444";
-        ctx.lineWidth = 3;
-        for (let i = 0; i < sim_dataPoints.length; i++) {
-            const x = (i / (sim_dataPoints.length - 1)) * (canvas.width - pad * 2) + pad;
-            const y = canvas.height - ((sim_dataPoints[i] - min) / range * (canvas.height - pad * 2) + pad);
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        // --- 即時排行榜 ---
+        function startLeaderboard() {
+            const q = query(collection(db, "players"), orderBy("totalAsset", "desc"), limit(5));
+            onSnapshot(q, (snapshot) => {
+                const list = ;
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    list.push(`<div class="rank-item"><span>${data.name}</span><span class="up">$${Math.floor(data.totalAsset)}</span></div>`);
+                });
+                document.getElementById('rank-list').innerHTML = list.join('');
+            });
         }
-        ctx.stroke();
-    }
 
-    function doNextDay() {
-        sim_day++;
-        sim_lastPrice = sim_price;
-        const vol = (Math.random() * 0.3 - 0.15); 
-        const pull = (100 - sim_price) * 0.08 / 100;
-        sim_price *= (1 + vol + pull);
-        if (sim_price < 1) sim_price = 1;
-        sim_dataPoints.push(sim_price);
-        if (sim_dataPoints.length > 30) sim_dataPoints.shift();
-        refreshUI();
-    }
+        // --- 遊戲邏輯 ---
+        const canvas = document.getElementById('game-chart');
+        const ctx = canvas.getContext('2d');
 
-    function tradeStock(type, amount) {
-        let qty = 0;
-        if (type === 'buy') {
-            qty = (amount === 'all') ? Math.floor(sim_cash / sim_price) : amount;
-            if (qty > 0 && sim_cash >= (qty * sim_price)) {
-                sim_cash -= (qty * sim_price);
-                sim_shares += qty;
-                addLog('買入', qty, sim_price);
+        window.nextDay = function() {
+            g.day++;
+            g.lastPrice = g.price;
+            const vol = (Math.random() * 0.3 - 0.15);
+            g.price *= (1 + vol + (100 - g.price) * 0.05 / 100);
+            if (g.price < 5) g.price = 5;
+            g.history.push(g.price);
+            if (g.history.length > 25) g.history.shift();
+            refreshUI();
+            syncCloud();
+        };
+
+        window.trade = function(type, amt) {
+            let qty = (amt === 'all') ? (type==='buy'?Math.floor(g.cash/g.price):g.shares) : amt;
+            if (type === 'buy' && g.cash >= qty * g.price) {
+                g.cash -= qty * g.price; g.shares += qty;
+            } else if (type === 'sell' && g.shares >= qty) {
+                g.cash += qty * g.price; g.shares -= qty;
             }
-        } else {
-            qty = (amount === 'all') ? sim_shares : amount;
-            if (qty > 0 && sim_shares >= qty) {
-                sim_shares -= qty;
-                sim_cash += (qty * sim_price);
-                addLog('賣出', qty, sim_price);
-            }
+            refreshUI();
+            syncCloud();
+        };
+
+        function refreshUI() {
+            document.getElementById('stock-price').innerText = "$" + g.price.toFixed(2);
+            document.getElementById('display-cash').innerText = g.cash.toFixed(0);
+            document.getElementById('display-shares').innerText = g.shares;
+            document.getElementById('display-day').innerText = g.day;
+            const diff = ((g.price - g.lastPrice)/g.lastPrice*100);
+            const pEl = document.getElementById('stock-percent');
+            pEl.innerText = (diff>=0?"+":"")+diff.toFixed(2)+"%";
+            pEl.className = diff>=0?"up":"down";
+            drawChart(diff>=0);
         }
-        refreshUI();
-    }
 
-    function addLog(type, qty, price) {
-        const entry = `[Day ${sim_day}] <span class="${type==='買入'?'up':'down'}">${type}</span> ${qty} 股 @ $${price.toFixed(2)}`;
-        sim_logs.unshift(entry);
-        if (sim_logs.length > 50) sim_logs.pop();
-    }
-
-    function resetGameData() {
-        if(confirm("確定重置嗎？")) { localStorage.removeItem('inv_sim_final_v1'); location.reload(); }
-    }
-
-    // 啟動
-    window.onload = function() {
-        loadFromLocal();
-        refreshUI();
-    };
-</script>
+        function drawChart(isUp) {
+            canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+            if (g.history.length < 2) return;
+            const pad = 20; const max = Math.max(...g.history)*1.05; const min = Math.min(...g.history)*0.95;
+            const range = (max - min) || 1;
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.beginPath(); ctx.strokeStyle = isUp?"#22c55e":"#ef4444"; ctx.lineWidth = 3;
+            g.history.forEach((p, i) => {
+                const x = (i/(g.history.length-1))*(canvas.width-pad*2)+pad;
+                const y = canvas.height-((p-min)/range*(canvas.height-pad*2)+pad);
+                if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+            });
+            ctx.stroke();
+        }
+    </script>
 </body>
 </html>
