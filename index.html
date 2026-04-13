@@ -3,31 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 雲端加強版 V1.5</title>
+    <title>投資模擬器 - 雲端加強版 V1.6</title>
 
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         
-        /* 登入層 */
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 300px; }
         input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
         
-        /* 圖表與價格 */
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
-        #stock-price { font-size: 32px; font-weight: 800; }
+        #stock-price { font-size: 32px; font-weight: 800; transition: color 0.3s; }
         #stock-percent { font-size: 16px; font-weight: bold; }
         canvas { width: 100%; height: 150px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
         
-        /* 數據欄位 */
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #334155; padding: 8px; border-radius: 10px; }
         .stat-label { font-size: 11px; color: #94a3b8; }
         .stat-val { font-size: 15px; font-weight: bold; }
 
-        /* 交易面板 */
         .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
         .trade-title { font-size: 13px; font-weight: bold; padding: 4px; border-radius: 4px; }
@@ -37,16 +33,16 @@
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
+        .btn-reset { background: #475569; color: #cbd5e1; font-size: 11px; padding: 5px 10px; margin-top: 15px; width: 100%; }
 
-        /* 紀錄與排行 */
         .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; border: 1px solid #334155; }
         .list-title { font-size: 11px; color: #64748b; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 3px; font-weight: bold; }
         .log-list { height: 100px; overflow-y: auto; font-size: 11px; font-family: monospace; }
         .log-item { border-bottom: 1px dashed #222; padding: 2px 0; }
         
         #debug-log { font-size: 10px; color: #64748b; margin-top: 10px; text-align: left; background: #000; padding: 5px; border-radius: 5px; max-height: 50px; overflow-y: auto; }
-        .up { color: var(--up); }
-        .down { color: var(--down); }
+        .up { color: var(--up) !important; }
+        .down { color: var(--down) !important; }
     </style>
 </head>
 <body>
@@ -104,14 +100,11 @@
         </div>
 
         <div class="list-container">
-            <div class="list-title">交易紀錄 (TRANSACTION LOG)</div>
-            <div id="log-list" class="log-list"></div>
-        </div>
-
-        <div class="list-container">
-            <div class="list-title">🏆 雲端排行榜 (TOP 5)</div>
+            <div class="list-title">🏆 排行榜 (TOP 5)</div>
             <div id="rank-list" class="log-list" style="height: 110px;">載入中...</div>
         </div>
+
+        <button class="btn-reset" onclick="resetGameData()">⚠️ 重置所有遊戲數據 (Reset)</button>
     </div>
 
 <script type="module">
@@ -138,14 +131,6 @@
     el.scrollTop = el.scrollHeight;
   }
 
-  function addTradeLog(msg, type) {
-    const list = document.getElementById("log-list");
-    const item = document.createElement("div");
-    item.className = "log-item " + (type || "");
-    item.innerText = `[Day ${g.day}] ${msg}`;
-    list.prepend(item);
-  }
-
   // 初始化 Firebase
   try {
     const app = initializeApp(firebaseConfig);
@@ -162,7 +147,6 @@
   window.startGame = async function () {
     const name = document.getElementById("username-input").value.trim();
     if (name.length < 2) return alert("暱稱太短");
-
     g.name = name;
     g.playerId = encodeURIComponent(name);
 
@@ -182,9 +166,24 @@
         sysLog("資料庫錯誤: " + e.message);
       }
     }
-
     document.getElementById("auth-overlay").style.display = "none";
     document.getElementById("player-display").innerText = "玩家: " + g.name;
+    refreshUI();
+  };
+
+  // 重置功能
+  window.resetGameData = async function() {
+    if(!confirm("確定要重置所有數據嗎？這將清空現金與持股並從第 1 天開始！")) return;
+    
+    g.cash = 1000;
+    g.shares = 0;
+    g.day = 1;
+    g.price = 100;
+    g.lastPrice = 100;
+    g.history = [100];
+    
+    sysLog("數據已重置");
+    await syncToCloud();
     refreshUI();
   };
 
@@ -212,23 +211,18 @@
     });
   }
 
-  // 下一天
   window.handleNextDay = function () {
     g.day++;
     g.lastPrice = g.price;
-    // 波動邏輯
     const change = (Math.random() * 0.28 - 0.14) + ((100 - g.price) * 0.08) / 100;
     g.price *= (1 + change);
     if (g.price < 5) g.price = 5;
-    
     g.history.push(g.price);
     if (g.history.length > 20) g.history.shift();
-    
     refreshUI();
     syncToCloud();
   };
 
-  // 買賣邏輯
   window.handleTrade = function (type, amount) {
     const price = g.price;
     if (type === 'buy') {
@@ -236,19 +230,13 @@
       if (buyQty > 0 && g.cash >= buyQty * price) {
         g.cash -= buyQty * price;
         g.shares += buyQty;
-        addTradeLog(`買入 ${buyQty} 股 (價格: $${price.toFixed(2)})`, "up");
-      } else {
-        alert("現金不足或無效購買");
-      }
+      } else { alert("現金不足"); }
     } else {
       let sellQty = (amount === 'all') ? g.shares : amount;
       if (sellQty > 0 && g.shares >= sellQty) {
         g.cash += sellQty * price;
         g.shares -= sellQty;
-        addTradeLog(`賣出 ${sellQty} 股 (價格: $${price.toFixed(2)})`, "down");
-      } else {
-        alert("持股不足");
-      }
+      } else { alert("持股不足"); }
     }
     refreshUI();
     syncToCloud();
@@ -257,29 +245,41 @@
   function refreshUI() {
     const priceEl = document.getElementById("stock-price");
     const percentEl = document.getElementById("stock-percent");
-    
     priceEl.innerText = g.price.toFixed(2);
     document.getElementById("display-cash").innerText = Math.floor(g.cash).toLocaleString();
     document.getElementById("display-shares").innerText = g.shares;
     document.getElementById("display-day").innerText = g.day;
 
-    // 計算百分比
-    const diff = ((g.price - g.lastPrice) / g.lastPrice) * 100;
-    percentEl.innerText = (diff >= 0 ? "+" : "") + diff.toFixed(2) + "%";
-    percentEl.className = diff >= 0 ? "up" : "down";
-    priceEl.className = diff >= 0 ? "up" : "down";
+    const diff = g.price - g.lastPrice;
+    const diffPercent = (diff / g.lastPrice) * 100;
+    percentEl.innerText = (diff >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
+    
+    // 根據升跌更新文字顏色
+    const colorClass = diff >= 0 ? "up" : "down";
+    priceEl.className = colorClass;
+    percentEl.className = colorClass;
 
-    drawChart();
+    drawChart(colorClass); // 傳遞顏色類別到繪圖函數
   }
 
-  function drawChart() {
+  function drawChart(status) {
     const c = document.getElementById("game-chart");
     const t = c.getContext("2d");
     c.width = c.offsetWidth; c.height = c.offsetHeight;
+    
     const max = Math.max(...g.history, 110) * 1.1;
     const min = Math.min(...g.history, 90) * 0.9;
+    
     t.clearRect(0, 0, c.width, c.height);
-    t.beginPath(); t.strokeStyle = "#38bdf8"; t.lineWidth = 3;
+    t.beginPath();
+    
+    // 功能：線圖顏色隨升跌改變
+    t.strokeStyle = (status === "up") ? "#22c55e" : "#ef4444";
+    t.shadowBlur = 10;
+    t.shadowColor = t.strokeStyle;
+    t.lineWidth = 3;
+    t.lineJoin = "round";
+
     g.history.forEach((p, i) => {
       const x = (i / (g.history.length - 1 || 1)) * (c.width - 40) + 20;
       const y = c.height - ((p - min) / (max - min || 1)) * (c.height - 40) - 20;
