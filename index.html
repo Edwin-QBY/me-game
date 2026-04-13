@@ -34,8 +34,8 @@
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
             <input type="password" id="password-input" placeholder="輸入存檔密碼">
             <button class="btn-next" id="start-btn">進入遊戲</button>
-            <p style="font-size:10px; color:#94a3b8; margin:5px 0 0 0;">同名玩家需輸入正確密碼才能讀取存檔</p>
-            <p style="font-size:10px; color:#ef4444; margin-top:10px;">⚠️ 提醒：此密碼僅用於簡單驗證，請勿使用重要密碼。</p>
+            <p style="font-size:10px; color:#94a3b8; margin:5px 0 0 0;">請緊記自己的用戶id和密碼 暫時無法更改</p>
+            <p style="font-size:10px; color:#ef4444; margin-top:10px;">⚠️此密碼不受保障，請勿使用重要帳戶相同的密碼。</p>
         </div>
     </div>
 
@@ -69,7 +69,7 @@
         </div>
 
         <div class="list-container">
-            <div style="color:#64748b; margin-bottom:5px;">📋 交易日誌 (Log)</div>
+            <div style="color:#64748b; margin-bottom:5px;">📋 行為日誌</div>
             <div id="log-list" class="log-list"></div>
         </div>
 
@@ -121,7 +121,7 @@
       querySnap.forEach(doc => { if(doc.data().name === name) found = doc.data(); });
 
       if (found) {
-        if (found.pw !== pass) return alert("暱稱已被使用且密碼錯誤！");
+        if (found.pw !== pass) return alert("暱稱已被使用/密碼錯誤！");
         _s.c = found.cash; _s.s = found.shares; _s.d = found.day;
         _s.n = found.name; _s.pw = found.pw; _s.ic = found.isCheater;
       } else {
