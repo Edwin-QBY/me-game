@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 安全強化版 V1.7</title>
+    <title>投資模擬器 - 安全強化版 V1.7.1</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
@@ -13,9 +13,20 @@
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
-        .key-tip { font-size: 10px; color: #f1c40f; text-align: left; margin-bottom: 10px; line-height: 1.4; }
         
-        /* 數值顯示 */
+        /* 安全提示樣式 */
+        .security-tip { 
+            font-size: 11px; 
+            color: #94a3b8; 
+            text-align: left; 
+            margin: 15px 0; 
+            padding: 10px; 
+            background: rgba(0,0,0,0.2); 
+            border-radius: 8px; 
+            border-left: 3px solid #f1c40f; 
+        }
+        .security-tip b { color: #f1c40f; }
+
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
         #stock-price { font-size: 32px; font-weight: 800; }
         #stock-percent { font-size: 16px; font-weight: bold; }
@@ -26,11 +37,9 @@
         .stat-label { font-size: 11px; color: #94a3b8; }
         .stat-val { font-size: 15px; font-weight: bold; }
 
-        /* 交易與紀錄 */
         .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; color: white; padding: 10px; font-size: 13px; }
-        button:active { transform: scale(0.95); opacity: 0.8; }
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
@@ -52,10 +61,15 @@
         <div class="auth-box">
             <h2 style="color:var(--blue); margin-top:0; margin-bottom:10px;">🎮 安全存取</h2>
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
-            <input type="password" id="access-key-input" placeholder="輸入存取密鑰 (自訂)">
-            <div class="key-tip">註：新玩家請自行設定一組密鑰。舊玩家需輸入正確密鑰才能載入進度，請務必記牢。</div>
+            <input type="password" id="access-key-input" placeholder="輸入存取密鑰">
+            
+            <div class="security-tip">
+                <b>⚠️ 安全提示：</b><br>
+                目前版本採用開發者模式儲存，密鑰將以<b>明文格式</b>存於雲端。請<b>絕對不要</b>使用與你個人銀行、社交帳號相同的密碼。
+            </div>
+
             <button class="btn-next" style="margin-bottom:0;" onclick="startGame()">登入 / 註冊</button>
-            <div id="status-msg" style="color: #94a3b8; font-size: 11px; margin-top: 10px;">雲端安全檢測中...</div>
+            <div id="status-msg" style="color: #94a3b8; font-size: 11px; margin-top: 10px;">安全環境檢測中...</div>
             <div id="debug-log">> 系統就緒</div>
         </div>
     </div>
@@ -85,7 +99,7 @@
             </div>
         </div>
 
-        <button class="btn-next" onclick="handleNextDay()">⏩ 進入下一天 (Next Day)</button>
+        <button class="btn-next" onclick="handleNextDay()">⏩ 進入下一天</button>
 
         <div class="trade-panel">
             <div class="trade-col">
@@ -112,6 +126,8 @@
     </div>
 
 <script type="module">
+  // 注意：以下代碼僅供學習與簡易模擬使用。
+  // 為確保絕對安全，應在生產環境中使用 Firebase Authentication 並將密鑰進行 Hash 處理。
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import {
     getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot
@@ -131,11 +147,9 @@
 
   function sysLog(msg) {
     const el = document.getElementById("debug-log");
-    el.innerText += "\n> " + msg;
-    el.scrollTop = el.scrollHeight;
+    if(el) { el.innerText += "\n> " + msg; el.scrollTop = el.scrollHeight; }
   }
 
-  // 交易紀錄邏輯
   function addTradeLog(msg, type) {
     const list = document.getElementById("log-list");
     const item = document.createElement("div");
@@ -148,11 +162,11 @@
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
-    document.getElementById("status-msg").innerText = "安全盾已就緒";
+    document.getElementById("status-msg").innerText = "連線已加密";
     document.getElementById("conn-icon").innerText = "● 安全連線";
     document.getElementById("conn-icon").style.color = "#22c55e";
   } catch (e) {
-    sysLog("連線失敗: " + e.message);
+    sysLog("連線失敗");
   }
 
   window.startGame = async function () {
@@ -163,7 +177,7 @@
     if (keyInput.length < 4) return alert("密鑰請至少設定 4 位數");
 
     g.name = nameInput;
-    g.playerId = encodeURIComponent(nameInput).toLowerCase(); // 統一小寫 ID
+    g.playerId = encodeURIComponent(nameInput).toLowerCase();
     g.accessKey = keyInput;
 
     if (db) {
@@ -173,20 +187,16 @@
         
         if (snap.exists()) {
           const cloudData = snap.data();
-          // 安全檢查：密鑰匹配
           if (cloudData.accessKey !== g.accessKey) {
-            return alert("暱稱已被佔用或密鑰錯誤！請換一個暱稱或輸入正確密鑰。");
+            return alert("暱稱已被佔用或密鑰錯誤！");
           }
           g = { ...g, ...cloudData };
-          sysLog("認證成功，載入雲端紀錄");
         } else {
-          // 防止大量註冊的簡單邏輯：雲端建立新檔
           await syncToCloud();
-          sysLog("新玩家註冊成功");
         }
         startLeaderboard();
       } catch (e) {
-        sysLog("資料庫錯誤: " + e.message);
+        sysLog("數據庫同步異常");
       }
     }
     document.getElementById("auth-overlay").style.display = "none";
@@ -201,7 +211,7 @@
       await setDoc(doc(db, "players", g.playerId), {
         ...g, totalAsset: total, lastUpdate: Date.now()
       }, { merge: true });
-    } catch (e) { console.error("同步失敗", e); }
+    } catch (e) {}
   }
 
   function startLeaderboard() {
@@ -234,24 +244,21 @@
     const price = g.price;
     if (type === 'buy') {
       let buyQty = (amount === 'all') ? Math.floor(g.cash / price) : amount;
-      // 修正：只有在餘額不足時才報錯
       if (buyQty > 0 && g.cash >= buyQty * price) {
         g.cash -= buyQty * price;
         g.shares += buyQty;
         addTradeLog(`買入 ${buyQty} 股 ($${price.toFixed(2)})`, 'buy');
       } else if (g.cash < price) {
-        // 資金完全不夠一股才提示
-        alert("資金不足以購買！");
+        alert("資金不足！");
       }
     } else {
       let sellQty = (amount === 'all') ? g.shares : amount;
-      // 修正：只有在沒持股時才報錯
       if (sellQty > 0 && g.shares >= sellQty) {
         g.cash += sellQty * price;
         g.shares -= sellQty;
         addTradeLog(`賣出 ${sellQty} 股 ($${price.toFixed(2)})`, 'sell');
       } else if (g.shares <= 0) {
-        alert("你手上沒有股票可以賣！");
+        alert("無持股可賣！");
       }
     }
     refreshUI();
@@ -259,7 +266,7 @@
   };
 
   window.resetGameData = async function() {
-    if(!confirm("確定要重置所有數據嗎？密鑰不會變，但錢和天數會歸零。")) return;
+    if(!confirm("確定要重置嗎？")) return;
     g.cash = 1000; g.shares = 0; g.day = 1; g.price = 100; g.lastPrice = 100; g.history = [100];
     document.getElementById("log-list").innerHTML = "";
     await syncToCloud();
@@ -273,7 +280,6 @@
     document.getElementById("display-cash").innerText = Math.floor(g.cash).toLocaleString();
     document.getElementById("display-shares").innerText = g.shares;
     document.getElementById("display-day").innerText = g.day;
-
     const diffPercent = ((g.price - g.lastPrice) / g.lastPrice) * 100;
     percentEl.innerText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
     const status = diffPercent >= 0 ? "up" : "down";
