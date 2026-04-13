@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 安全防護最終版</title>
+    <title>投資模擬器 - 最終平衡防禦版</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
@@ -12,15 +12,20 @@
         .auth-box { background: var(--card); padding: 25px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
         input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; padding: 12px; border-radius: 10px; border:none; font-weight:bold; cursor:pointer; }
-        .trade-panel { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
-        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; font-size: 12px; }
+        
+        /* 垂直按鈕佈局 */
+        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .trade-col { display: flex; flex-direction: column; gap: 8px; }
+        
+        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 12px; font-size: 14px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        .btn-reset { background: #475569; font-size: 11px; margin-top: 15px; padding: 5px 10px; opacity: 0.7; border:none; border-radius:8px; color:white; cursor:pointer; }
+        .btn-reset { background: #475569; font-size: 11px; margin-top: 20px; padding: 5px 10px; opacity: 0.6; border:none; border-radius:8px; color:white; cursor:pointer; }
+        
         #stock-price { font-size: 32px; font-weight: 800; margin: 5px 0; }
-        canvas { width: 100%; height: 100px; background: #000; border-radius: 10px; margin-bottom: 10px; }
+        canvas { width: 100%; height: 110px; background: #000; border-radius: 10px; margin-bottom: 10px; }
         .list-container { margin-top: 10px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 12px; }
-        .log-list { height: 70px; overflow-y: auto; }
+        .log-list { height: 80px; overflow-y: auto; }
         .up { color: var(--up); }
         .down { color: var(--down); }
     </style>
@@ -33,8 +38,7 @@
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
             <input type="password" id="password-input" placeholder="輸入存檔密碼">
             <button class="btn-next" id="start-btn">進入遊戲</button>
-            <p style="font-size:10px; color:#94a3b8;">同名玩家需輸入正確密碼</p>
-            <p style="font-size:10px; color:#ef4444; margin-top:8px;">⚠️ 提醒：請勿使用重要密碼。</p>
+            <p style="font-size:10px; color:#ef4444;">⚠️ 提醒：請勿使用重要密碼。</p>
         </div>
     </div>
 
@@ -49,29 +53,33 @@
         
         <canvas id="game-chart"></canvas>
 
-        <div style="background: #1e293b; border: 1px solid var(--blue); padding: 8px; border-radius: 10px; margin-bottom: 10px; text-align: left;">
-            <div style="color:var(--blue); font-size: 10px; font-weight:bold;">📰 今日新聞</div>
-            <div id="news-text" style="font-size: 12px; color: #f8fafc; font-style: italic;">歡迎來到股市！</div>
+        <div style="background: #1e293b; border: 1px solid var(--blue); padding: 10px; border-radius: 10px; margin-bottom: 10px; text-align: left;">
+            <div style="color:var(--blue); font-size: 11px; font-weight:bold; margin-bottom:3px;">📰 市場情報</div>
+            <div id="news-text" style="font-size: 13px; color: #f8fafc; line-height: 1.4;">準備好開始投資了嗎？點擊下一天獲取新聞。</div>
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
-            <div style="background:#334155; padding:8px; border-radius:10px;">現金: $<span id="display-cash">1000</span></div>
-            <div style="background:#334155; padding:8px; border-radius:10px;">持股: <span id="display-shares">0</span></div>
+            <div style="background:#334155; padding:10px; border-radius:10px;">現金: $<span id="display-cash">1000</span></div>
+            <div style="background:#334155; padding:10px; border-radius:10px;">持股: <span id="display-shares">0</span></div>
         </div>
 
         <button class="btn-next" id="next-day-btn">⏩ 進入下一天</button>
 
         <div class="trade-panel">
-            <button class="btn-buy" id="buy-1">買 1</button>
-            <button class="btn-buy" id="buy-10">買 10</button>
-            <button class="btn-buy" id="buy-all">全買</button>
-            <button class="btn-sell" id="sell-1">賣 1</button>
-            <button class="btn-sell" id="sell-10">賣 10</button>
-            <button class="btn-sell" id="sell-all">全賣</button>
+            <div class="trade-col">
+                <button class="btn-buy" id="buy-1">買入 1</button>
+                <button class="btn-buy" id="buy-10">買入 10</button>
+                <button class="btn-buy" id="buy-all">全部買入</button>
+            </div>
+            <div class="trade-col">
+                <button class="btn-sell" id="sell-1">賣出 1</button>
+                <button class="btn-sell" id="sell-10">賣出 10</button>
+                <button class="btn-sell" id="sell-all">全部賣出</button>
+            </div>
         </div>
 
         <div class="list-container">
-            <div style="color:#64748b; margin-bottom:5px;">📋 交易日誌</div>
+            <div style="color:#64748b; margin-bottom:5px;">📋 交易紀錄</div>
             <div id="log-list" class="log-list"></div>
         </div>
 
@@ -80,7 +88,7 @@
             <div id="rank-list" class="log-list">載入中...</div>
         </div>
 
-        <button class="btn-reset" id="reset-btn">重置個人遊戲數據</button>
+        <button class="btn-reset" id="reset-btn">重置遊戲進度</button>
     </div>
 
 <script type="module">
@@ -105,25 +113,27 @@
   let _check = 1000;
   let uid = ""; 
 
+  // 平衡後的新聞系統：增加利好權重
   const newsLibrary = [
-    { t: "科技巨頭發佈新款 AI 晶片，板塊全線大漲！", mul: [0.1, 0.25] },
-    { t: "央行宣佈降息，市場資金湧入股市。", mul: [0.05, 0.15] },
-    { t: "爆發全球性病毒危機，投資者恐慌拋售。", mul: [-0.15, -0.3] },
-    { t: "今日市場平淡，投資者正在觀望。", mul: [-0.02, 0.02] },
-    { t: "某上市公司被爆財務造假，股價跳水。", mul: [-0.1, -0.2] }
+    { t: "【利好】科技龍頭宣佈業績超預期，投資者信心大增！", mul: [0.12, 0.28] },
+    { t: "【利好】政府宣佈支持新興產業，股市迎來資金潮。", mul: [0.08, 0.20] },
+    { t: "【利好】分析師上調評級，認為股價仍有上升空間。", mul: [0.05, 0.12] },
+    { t: "【中性】今日市場波動較小，散戶情緒穩定。", mul: [-0.03, 0.05] },
+    { t: "【中性】各國央行維持利率不變，市場反應平淡。", mul: [-0.02, 0.03] },
+    { t: "【利空】全球供應鏈受阻，企業成本負擔加重。", mul: [-0.08, -0.15] },
+    { t: "【利空】市場傳聞大型基金撤資，股價承受壓力。", mul: [-0.10, -0.22] },
+    { t: "【突發】某主要產油國動盪，引發能源板塊大震盪。", mul: [-0.15, 0.15] }
   ];
 
   document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
     const pass = document.getElementById("password-input").value.trim();
-    if (name.length < 2 || pass.length < 3) return alert("暱稱或密碼太短");
+    if (name.length < 2 || pass.length < 3) return alert("請輸入有效的暱稱與密碼");
 
     try {
-      // 1. 匿名登入獲取臨時身份
       const res = await signInAnonymously(auth);
       const tempUid = res.user.uid;
 
-      // 2. 查找暱稱對應的舊資料
       const q = query(collection(db, "players"), where("name", "==", name));
       const snap = await getDocs(q);
       
@@ -132,11 +142,11 @@
       snap.forEach(d => { if(d.data().name === name) { foundData = d.data(); foundUid = d.id; } });
 
       if (foundData) {
-        if (foundData.pw !== pass) return alert("密碼錯誤！");
-        uid = foundUid; // 繼承舊 UID
+        if (foundData.pw !== pass) return alert("暱稱已存在且密碼錯誤！");
+        uid = foundUid; 
         _s = { ..._s, c: foundData.cash, s: foundData.shares, d: foundData.day, n: foundData.name, pw: foundData.pw, ic: foundData.isCheater };
       } else {
-        uid = tempUid; // 新玩家使用新 UID
+        uid = tempUid; 
         _s.n = name; _s.pw = pass;
         await sync();
       }
@@ -145,7 +155,7 @@
       _check = _s.c;
       startLeaderboard();
       refreshUI();
-    } catch (e) { alert("連線失敗"); }
+    } catch (e) { alert("無法連線至伺服器"); }
   };
 
   async function sync() {
@@ -181,19 +191,25 @@
     const news = newsLibrary[Math.floor(Math.random() * newsLibrary.length)];
     document.getElementById('news-text').innerText = news.t;
     const effect = Math.random() * (news.mul[1] - news.mul[0]) + news.mul[0];
-    _s.p *= (1 + effect); if (_s.p < 5) _s.p = 5;
+    
+    _s.p *= (1 + effect); 
+    if (_s.p < 5) _s.p = 5 + (Math.random() * 5); // 防止死股，跌到底會微幅反彈
+    
     _s.h.push(_s.p); if (_s.h.length > 20) _s.h.shift();
     refreshUI(); sync();
   };
 
   document.getElementById('reset-btn').onclick = async () => {
-    if(confirm("確定重置數據？")){ _s.c=1000;_s.s=0;_s.d=1;_s.p=100;_s.h=[100]; refreshUI(); await sync(); }
+    if(confirm("確定要刪除當前存檔並重置嗎？")){ 
+      _s.c=1000;_s.s=0;_s.d=1;_s.p=100;_s.lp=100;_s.h=[100]; 
+      refreshUI(); await sync(); 
+    }
   };
 
   function addLog(msg, clr) {
     const log = document.getElementById("log-list");
     const div = document.createElement("div");
-    div.innerHTML = `<span style="color:#64748b">[D${_s.d}]</span> <span class="${clr}">${msg}</span>`;
+    div.innerHTML = `<span style="color:#64748b">[Day ${_s.d}]</span> <span class="${clr}">${msg}</span>`;
     log.prepend(div);
   }
 
@@ -202,7 +218,10 @@
       let h = "";
       snap.forEach(d => {
         const p = d.data();
-        h += `<div style="display:flex; justify-content:space-between;"><span>${p.name}${p.isCheater ? '🚫' : ''}</span><b>$${Math.floor(p.totalAsset).toLocaleString()}</b></div>`;
+        h += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>${p.name}${p.isCheater ? '🚫' : ''}</span>
+                <b>$${Math.floor(p.totalAsset).toLocaleString()}</b>
+              </div>`;
       });
       document.getElementById("rank-list").innerHTML = h;
     });
@@ -213,11 +232,11 @@
     document.getElementById("display-shares").innerText = _s.s;
     document.getElementById("display-day").innerText = _s.d;
     document.getElementById("stock-price").innerText = "$" + _s.p.toFixed(2);
-    const diff = ((_s.p - _s.lp) / _s.lp * 100).toFixed(2);
+    const diff = (((_s.p - _s.lp) / _s.lp) * 100).toFixed(2);
     const pEl = document.getElementById("stock-percent");
     pEl.innerText = (diff >= 0 ? "+" : "") + diff + "%";
     pEl.className = diff >= 0 ? "up" : "down";
-    document.getElementById("player-display").innerText = "玩家: " + _s.n + (_s.ic ? " (異常)" : "");
+    document.getElementById("player-display").innerText = "玩家: " + _s.n;
     drawChart();
   }
 
@@ -226,10 +245,12 @@
     const t = c.getContext("2d");
     c.width = c.offsetWidth; c.height = c.offsetHeight;
     t.clearRect(0,0,c.width,c.height);
-    t.beginPath(); t.strokeStyle = (_s.p >= _s.lp) ? "#22c55e" : "#ef4444"; t.lineWidth = 2;
+    t.beginPath(); 
+    t.strokeStyle = (_s.p >= _s.lp) ? "#22c55e" : "#ef4444"; 
+    t.lineWidth = 2;
     _s.h.forEach((v, i) => {
       const x = (i / (_s.h.length - 1 || 1)) * c.width;
-      const y = c.height - (v / (Math.max(..._s.h, 1) * 1.2)) * c.height;
+      const y = c.height - (v / (Math.max(..._s.h, 1) * 1.3)) * c.height;
       if(i===0) t.moveTo(x,y); else t.lineTo(x,y);
     });
     t.stroke();
