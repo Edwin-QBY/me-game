@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 安全防護版</title>
+    <title>投資模擬器 - V3</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; }
+        .auth-box { background: var(--card); padding: 25px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
+        input { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; padding: 12px; border-radius: 10px; border:none; font-weight:bold; cursor:pointer; }
         .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        #stock-price { font-size: 32px; font-weight: 800; margin: 10px 0; }
+        .btn-reset { background: #475569; font-size: 11px; margin-top: 15px; padding: 5px 10px; opacity: 0.7; }
+        #stock-price { font-size: 32px; font-weight: 800; margin: 10px 0 0 0; }
         canvas { width: 100%; height: 120px; background: #000; border-radius: 10px; margin-bottom: 10px; }
         .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 12px; }
         .log-list { height: 80px; overflow-y: auto; }
@@ -29,10 +30,11 @@
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h2 style="color:var(--blue); margin:0;">🎮 投資模擬器</h2>
-            <p style="font-size:12px; color:#94a3b8;">登入後系統將自動啟動安全防禦</p>
-            <input type="text" id="username-input" placeholder="輸入玩家暱稱">
-            <button class="btn-next" id="start-btn">進入遊戲</button>
+            <h2 style="color:var(--blue); margin:0 0 10px 0;">🎮 帳號登入</h2>
+            <input type="text" id="username-input" placeholder="玩家暱稱 (至少2字)">
+            <input type="password" id="password-input" placeholder="登入密碼 (用於存檔驗證)">
+            <button class="btn-next" id="start-btn">開始遊戲</button>
+            <p style="font-size:11px; color:#94a3b8; margin:5px 0 0 0;">同名玩家需輸入正確密碼才能讀取</p>
         </div>
     </div>
 
@@ -58,10 +60,12 @@
             <div class="trade-col">
                 <button class="btn-buy" id="buy-1">買 1</button>
                 <button class="btn-buy" id="buy-10">買 10</button>
+                <button class="btn-buy" id="buy-all">全買</button>
             </div>
             <div class="trade-col">
                 <button class="btn-sell" id="sell-1">賣 1</button>
                 <button class="btn-sell" id="sell-10">賣 10</button>
+                <button class="btn-sell" id="sell-all">全賣</button>
             </div>
         </div>
 
@@ -74,11 +78,13 @@
             <div style="color:#64748b; margin-bottom:5px;">🏆 財富排行</div>
             <div id="rank-list" class="log-list">載入中...</div>
         </div>
+
+        <button class="btn-reset" id="reset-btn">重置個人遊戲數據</button>
     </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
@@ -94,32 +100,44 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", ic: false };
+  let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", pw: "", ic: false };
   let _check = 1000;
   let uid = "";
 
-  // 點擊按鈕的邏輯
   document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
+    const pass = document.getElementById("password-input").value.trim();
     if (name.length < 2) return alert("暱稱太短");
+    if (pass.length < 3) return alert("密碼至少需3位數");
 
     try {
       const user = await signInAnonymously(auth);
       uid = user.user.uid;
-      const snap = await getDoc(doc(db, "players", uid));
-      if (snap.exists()) {
-        const data = snap.data();
-        _s.c = data.cash; _s.s = data.shares; _s.d = data.day; _s.n = data.name; _s.ic = data.isCheater;
+
+      // 檢查此暱稱是否已被使用
+      const q = query(collection(db, "players"), where("name", "==", name));
+      const querySnap = await getDocs(q);
+      
+      let existingData = null;
+      querySnap.forEach(doc => { if(doc.data().name === name) existingData = doc.data(); });
+
+      if (existingData) {
+        if (existingData.pw !== pass) {
+          return alert("此暱稱已被使用，且密碼錯誤！請更換暱稱或輸入正確密碼。");
+        }
+        _s.c = existingData.cash; _s.s = existingData.shares; _s.d = existingData.day;
+        _s.n = existingData.name; _s.pw = existingData.pw; _s.ic = existingData.isCheater;
       } else {
-        _s.n = name;
+        _s.n = name; _s.pw = pass;
         await sync();
       }
+
       document.getElementById("auth-overlay").style.display = "none";
       _check = _s.c;
       startLeaderboard();
       refreshUI();
     } catch (e) {
-      alert("連線失敗，請檢查 Firebase 配置或 Rules 是否發佈。");
+      alert("系統忙碌中或配置錯誤");
       console.error(e);
     }
   };
@@ -127,28 +145,43 @@
   async function sync() {
     if (!uid) return;
     await setDoc(doc(db, "players", uid), {
-      name: _s.n, cash: _s.c, shares: _s.s, day: _s.d, 
+      name: _s.n, pw: _s.pw, cash: _s.c, shares: _s.s, day: _s.d, 
       totalAsset: _s.c + (_s.s * _s.p), isCheater: _s.ic, lastUpdate: Date.now()
     }, { merge: true });
   }
 
-  function handleTrade(type, amt) {
-    if (type === 'buy' && _s.c >= amt * _s.p) {
-      _s.c -= amt * _s.p; _s.s += amt;
-      addLog(`買入 ${amt} 股`, 'up');
-    } else if (type === 'sell' && _s.s >= amt) {
-      _s.c += amt * _s.p; _s.s -= amt;
-      addLog(`賣出 ${amt} 股`, 'down');
+  function handleTrade(type, mode) {
+    const p = _s.p;
+    if (type === 'buy') {
+      let amt = 0;
+      if (mode === 'all') amt = Math.floor(_s.c / p);
+      else amt = mode;
+      
+      if (amt > 0 && _s.c >= amt * p) {
+        _s.c -= amt * p; _s.s += amt;
+        addLog(`買入 ${amt} 股 @ $${p.toFixed(2)}`, 'up');
+      }
+    } else {
+      let amt = 0;
+      if (mode === 'all') amt = _s.s;
+      else amt = mode;
+
+      if (amt > 0 && _s.s >= amt) {
+        _s.c += amt * p; _s.s -= amt;
+        addLog(`賣出 ${amt} 股 @ $${p.toFixed(2)}`, 'down');
+      }
     }
     _check = _s.c;
     refreshUI(); sync();
   }
 
-  // 綁定按鈕
   document.getElementById('buy-1').onclick = () => handleTrade('buy', 1);
   document.getElementById('buy-10').onclick = () => handleTrade('buy', 10);
+  document.getElementById('buy-all').onclick = () => handleTrade('buy', 'all');
   document.getElementById('sell-1').onclick = () => handleTrade('sell', 1);
   document.getElementById('sell-10').onclick = () => handleTrade('sell', 10);
+  document.getElementById('sell-all').onclick = () => handleTrade('sell', 'all');
+
   document.getElementById('next-day-btn').onclick = () => {
     _s.d++; _s.lp = _s.p;
     _s.p *= (1 + (Math.random() * 0.3 - 0.15));
@@ -157,8 +190,16 @@
     refreshUI(); sync();
   };
 
+  document.getElementById('reset-btn').onclick = async () => {
+    if(confirm("確定要重置所有數據嗎？這無法還原！")){
+        _s.c = 1000; _s.s = 0; _s.d = 1; _s.p = 100; _s.lp = 100; _s.h = [100];
+        addLog("數據已重置", "up");
+        refreshUI(); await sync();
+    }
+  };
+
   setInterval(() => {
-    if (uid && _s.c > _check) { _s.ic = true; sync(); }
+    if (uid && _s.c > _check + 0.01) { _s.ic = true; sync(); }
     _check = _s.c;
   }, 2000);
 
