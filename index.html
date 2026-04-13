@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - V3.1</title>
+    <title>投資模擬器 - V4 預報與同步修復版</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
@@ -34,8 +34,8 @@
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
             <input type="password" id="password-input" placeholder="輸入存檔密碼">
             <button class="btn-next" id="start-btn">進入遊戲</button>
-            <p style="font-size:10px; color:#94a3b8; margin:5px 0 0 0;">請緊記自己的用戶id和密碼 暫時無法更改</p>
-            <p style="font-size:10px; color:#ef4444; margin-top:10px;">⚠️此密碼不受保障，請勿使用重要帳戶相同的密碼。</p>
+            <p style="font-size:10px; color:#94a3b8; margin:5px 0 0 0;">請緊記暱稱與密碼，暫時無法找回。</p>
+            <p style="font-size:10px; color:#ef4444; margin-top:10px;">⚠️此密碼不受保障，請勿使用重要帳戶相同密碼。</p>
         </div>
     </div>
 
@@ -55,9 +55,9 @@
             <div style="background:#334155; padding:10px; border-radius:10px;">持股: <span id="display-shares">0</span></div>
         </div>
 
-        <div class="list-container" style="background: #1e293b; border: 1px solid var(--blue); margin-bottom: 10px;">
-            <div style="color:var(--blue); font-weight:bold; margin-bottom:5px;">📰 今日頭條</div>
-            <div id="news-text" style="font-size: 14px; color: #f8fafc; font-style: italic;">歡迎來到股市，點擊下一天開始獲取新聞...</div>
+        <div class="list-container" style="background: #1e3a8a; border: 1px solid var(--blue); margin-bottom: 10px;">
+            <div style="color:var(--blue); font-weight:bold; margin-bottom:5px;">📢 明日市場預報 (Forecast)</div>
+            <div id="news-text" style="font-size: 14px; color: #fff; font-style: italic;">歡迎！觀察預報後再決定交易策略...</div>
         </div>
 
         <button class="btn-next" id="next-day-btn">⏩ 進入下一天</button>
@@ -90,7 +90,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, collection, query, orderBy, limit, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
@@ -106,26 +106,26 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", pw: "", ic: false };
+  let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", pw: "", ic: false, f: "市場預期平穩", fe: 0 };
   let _check = 1000;
   let uid = "";
 
-  // 新聞庫
+  // 新聞庫：數值平衡，利多幅度略大於利空，並包含中立新聞
   const newsLibrary = [
-    { t: "科技巨頭發佈新款 AI 晶片，板塊全線大漲！", type: "up", mul: [0.1, 0.25] },
-    { t: "央行宣佈降息，市場資金湧入股市。", type: "up", mul: [0.05, 0.15] },
-    { t: "知名財經專家表示：當前股市被嚴重低估。", type: "up", mul: [0.02, 0.1] },
-    { t: "爆發全球性病毒危機，投資者恐慌拋售。", type: "down", mul: [-0.15, -0.3] },
-    { t: "某大型交易所遭到黑客攻擊，資金流失嚴重。", type: "down", mul: [-0.1, -0.2] },
-    { t: "政府宣佈加稅，企業獲利預期下降。", type: "down", mul: [-0.05, -0.1] },
-    { t: "今日市場平淡，投資者正在觀望。", type: "neutral", mul: [-0.02, 0.02] }
+    { t: "【利多】公司發布新專利，市場前景一片大好！", mul: [0.12, 0.28] },
+    { t: "【利多】大型機構宣布戰略入股，資金湧入。", mul: [0.08, 0.2] },
+    { t: "【利空】競爭對手低價搶佔市場，營收受壓。", mul: [-0.08, -0.15] },
+    { t: "【利空】工廠發生意外導致產能中斷。", mul: [-0.1, -0.22] },
+    { t: "【中立】公司宣布更換辦公室地點，運作正常。", mul: [-0.01, 0.01] },
+    { t: "【中立】知名分析師重申該股「持有」評級。", mul: [-0.03, 0.04] },
+    { t: "【利多】季度財報遠超預期，獲利能力驚人。", mul: [0.15, 0.32] },
+    { t: "【利空】政府宣布將對該產業加強監管。", mul: [-0.05, -0.12] }
   ];
 
   document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
     const pass = document.getElementById("password-input").value.trim();
-    if (name.length < 2) return alert("暱稱太短");
-    if (pass.length < 3) return alert("密碼太短");
+    if (name.length < 2 || pass.length < 3) return alert("暱稱或密碼過短");
 
     try {
       const user = await signInAnonymously(auth);
@@ -133,27 +133,38 @@
       const q = query(collection(db, "players"), where("name", "==", name));
       const querySnap = await getDocs(q);
       let found = null;
-      querySnap.forEach(doc => { if(doc.data().name === name) found = doc.data(); });
+      querySnap.forEach(doc => { found = doc.data(); });
 
       if (found) {
-        if (found.pw !== pass) return alert("暱稱已被使用/密碼錯誤！");
-        Object.assign(_s, found);
+        if (found.pw !== pass) return alert("密碼錯誤！");
+        _s = { ..._s, ...found };
       } else {
         _s.n = name; _s.pw = pass;
-        await sync();
+        generateNewForecast();
+        await sync(); // 關鍵：新用戶立即同步以進入排行榜
       }
+
       document.getElementById("auth-overlay").style.display = "none";
       _check = _s.c;
       startLeaderboard();
       refreshUI();
-    } catch (e) { alert("連線失敗"); }
+    } catch (e) { alert("連線失敗，請重試"); }
   };
 
   async function sync() {
-    if (!uid) return;
+    if (!uid || !_s.n) return;
     await setDoc(doc(db, "players", uid), {
-      ..._s, totalAsset: _s.c + (_s.s * _s.p), lastUpdate: Date.now()
+      ..._s,
+      totalAsset: Number(_s.c + (_s.s * _s.p)),
+      lastUpdate: Date.now()
     }, { merge: true });
+  }
+
+  function generateNewForecast() {
+    const news = newsLibrary[Math.floor(Math.random() * newsLibrary.length)];
+    _s.f = news.t;
+    const [min, max] = news.mul;
+    _s.fe = Math.random() * (max - min) + min;
   }
 
   function handleTrade(type, mode) {
@@ -174,6 +185,21 @@
     _check = _s.c; refreshUI(); sync();
   }
 
+  document.getElementById('next-day-btn').onclick = () => {
+    _s.d++; 
+    _s.lp = _s.p;
+    // 執行之前的預報
+    _s.p *= (1 + _s.fe);
+    // 加入微小隨機波動 (2% 範圍)
+    _s.p *= (1 + (Math.random() * 0.04 - 0.02));
+    if (_s.p < 2) _s.p = 2; // 保底價
+
+    // 生成明天的新預報
+    generateNewForecast();
+    _s.h.push(_s.p); if (_s.h.length > 20) _s.h.shift();
+    refreshUI(); sync();
+  };
+
   document.getElementById('buy-1').onclick = () => handleTrade('buy', 1);
   document.getElementById('buy-10').onclick = () => handleTrade('buy', 10);
   document.getElementById('buy-all').onclick = () => handleTrade('buy', 'all');
@@ -181,24 +207,10 @@
   document.getElementById('sell-10').onclick = () => handleTrade('sell', 10);
   document.getElementById('sell-all').onclick = () => handleTrade('sell', 'all');
 
-  // 下一天按鈕整合新聞系統
-  document.getElementById('next-day-btn').onclick = () => {
-    _s.d++; 
-    _s.lp = _s.p;
-    const news = newsLibrary[Math.floor(Math.random() * newsLibrary.length)];
-    document.getElementById('news-text').innerText = news.t;
-    const [min, max] = news.mul;
-    const effect = Math.random() * (max - min) + min;
-    _s.p *= (1 + effect);
-    if (_s.p < 5) _s.p = 5;
-    _s.h.push(_s.p); if (_s.h.length > 20) _s.h.shift();
-    refreshUI(); sync();
-  };
-
   document.getElementById('reset-btn').onclick = async () => {
-    if(confirm("重置將刪除所有數據，確定嗎？")){
-        Object.assign(_s, { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100] });
-        addLog("數據已重置", "up");
+    if(confirm("確定重置數據嗎？")){
+        _s.c = 1000; _s.s = 0; _s.d = 1; _s.p = 100; _s.lp = 100; _s.h = [100];
+        generateNewForecast();
         refreshUI(); await sync();
     }
   };
@@ -220,11 +232,11 @@
       let h = "";
       snap.forEach(d => {
         const p = d.data();
-        h += `<div style="display:flex; justify-content:space-between;">
+        if(p.name) h += `<div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                 <span>${p.name}${p.isCheater ? '🚫' : ''}</span><b>$${Math.floor(p.totalAsset).toLocaleString()}</b>
               </div>`;
       });
-      document.getElementById("rank-list").innerHTML = h;
+      document.getElementById("rank-list").innerHTML = h || "暫無數據";
     });
   }
 
@@ -233,6 +245,7 @@
     document.getElementById("display-shares").innerText = _s.s;
     document.getElementById("display-day").innerText = _s.d;
     document.getElementById("stock-price").innerText = "$" + _s.p.toFixed(2);
+    document.getElementById("news-text").innerText = _s.f;
     const diff = ((_s.p - _s.lp) / _s.lp * 100).toFixed(2);
     const pEl = document.getElementById("stock-percent");
     pEl.innerText = (diff >= 0 ? "+" : "") + diff + "%";
