@@ -3,27 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 終極安全版</title>
+    <title>投資模擬器 - 安全防護版</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
-        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
+        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
-        .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
-        #stock-price { font-size: 32px; font-weight: 800; }
-        canvas { width: 100%; height: 150px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
-        .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-        .stat-box { background: #334155; padding: 8px; border-radius: 10px; }
-        .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; padding: 12px; border-radius: 10px; border:none; font-weight:bold; }
-        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; }
+        .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; padding: 12px; border-radius: 10px; border:none; font-weight:bold; cursor:pointer; }
+        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 11px; }
-        .log-list { height: 80px; overflow-y: auto; font-family: monospace; }
+        #stock-price { font-size: 32px; font-weight: 800; margin: 10px 0; }
+        canvas { width: 100%; height: 120px; background: #000; border-radius: 10px; margin-bottom: 10px; }
+        .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 12px; }
+        .log-list { height: 80px; overflow-y: auto; }
         .up { color: var(--up); }
         .down { color: var(--down); }
     </style>
@@ -32,43 +29,39 @@
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h2 style="color:var(--blue); margin-top:0;">🎮 投資模擬器</h2>
+            <h2 style="color:var(--blue); margin:0;">🎮 投資模擬器</h2>
+            <p style="font-size:12px; color:#94a3b8;">登入後系統將自動啟動安全防禦</p>
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
-            <button class="btn-next" onclick="startGame()">開始遊戲 (安全加密模式)</button>
-            <div style="font-size: 11px; color: #94a3b8; margin-top:10px;">系統將自動鎖定您的專屬數據路徑</div>
+            <button class="btn-next" id="start-btn">進入遊戲</button>
         </div>
     </div>
 
     <div class="card">
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-bottom: 5px;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; color:#94a3b8;">
             <span id="player-display">玩家: ---</span>
             <span>DAY <b id="display-day">1</b></span>
         </div>
 
-        <div class="price-row">
-            <div id="stock-price">$100.00</div>
-            <div id="stock-percent">+0.00%</div>
-        </div>
+        <div id="stock-price">$100.00</div>
+        <div id="stock-percent" style="font-weight:bold; margin-bottom:10px;">+0.00%</div>
         
         <canvas id="game-chart"></canvas>
 
-        <div class="stats">
-            <div class="stat-box">現金: $<span id="display-cash">1000</span></div>
-            <div class="stat-box">持股: <span id="display-shares">0</span></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div style="background:#334155; padding:10px; border-radius:10px;">現金: $<span id="display-cash">1000</span></div>
+            <div style="background:#334155; padding:10px; border-radius:10px;">持股: <span id="display-shares">0</span></div>
         </div>
 
-        <button class="btn-next" onclick="handleNextDay()">進入下一天</button>
+        <button class="btn-next" id="next-day-btn">⏩ 進入下一天</button>
 
         <div class="trade-panel">
             <div class="trade-col">
-                <button class="btn-buy" onclick="handleTrade('buy', 1)">買 1</button>
-                <button class="btn-buy" onclick="handleTrade('buy', 10)">買 10</button>
-                <button class="btn-buy" onclick="handleTrade('buy', 'all')">全買</button>
+                <button class="btn-buy" id="buy-1">買 1</button>
+                <button class="btn-buy" id="buy-10">買 10</button>
             </div>
             <div class="trade-col">
-                <button class="btn-sell" onclick="handleTrade('sell', 1)">賣 1</button>
-                <button class="btn-sell" onclick="handleTrade('sell', 10)">賣 10</button>
-                <button class="btn-sell" onclick="handleTrade('sell', 'all')">全賣</button>
+                <button class="btn-sell" id="sell-1">賣 1</button>
+                <button class="btn-sell" id="sell-10">賣 10</button>
             </div>
         </div>
 
@@ -79,7 +72,7 @@
 
         <div class="list-container">
             <div style="color:#64748b; margin-bottom:5px;">🏆 財富排行</div>
-            <div id="rank-list" class="log-list"></div>
+            <div id="rank-list" class="log-list">載入中...</div>
         </div>
     </div>
 
@@ -101,31 +94,34 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  // 加密變數名稱，讓對方在 Console 找不到目標
   let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", ic: false };
   let _check = 1000;
   let uid = "";
 
-  window.startGame = async function () {
+  // 點擊按鈕的邏輯
+  document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
     if (name.length < 2) return alert("暱稱太短");
 
-    const user = await signInAnonymously(auth);
-    uid = user.user.uid;
-
-    const snap = await getDoc(doc(db, "players", uid));
-    if (snap.exists()) {
-      const data = snap.data();
-      _s.c = data.cash; _s.s = data.shares; _s.d = data.day; _s.n = data.name; _s.ic = data.isCheater;
-    } else {
-      _s.n = name;
-      await sync();
+    try {
+      const user = await signInAnonymously(auth);
+      uid = user.user.uid;
+      const snap = await getDoc(doc(db, "players", uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        _s.c = data.cash; _s.s = data.shares; _s.d = data.day; _s.n = data.name; _s.ic = data.isCheater;
+      } else {
+        _s.n = name;
+        await sync();
+      }
+      document.getElementById("auth-overlay").style.display = "none";
+      _check = _s.c;
+      startLeaderboard();
+      refreshUI();
+    } catch (e) {
+      alert("連線失敗，請檢查 Firebase 配置或 Rules 是否發佈。");
+      console.error(e);
     }
-    
-    _check = _s.c;
-    document.getElementById("auth-overlay").style.display = "none";
-    startLeaderboard();
-    refreshUI();
   };
 
   async function sync() {
@@ -136,26 +132,24 @@
     }, { merge: true });
   }
 
-  window.handleTrade = function (type, amt) {
-    const p = _s.p;
-    if (type === 'buy') {
-      let qty = (amt === 'all') ? Math.floor(_s.c / p) : amt;
-      if (qty > 0 && _s.c >= qty * p) {
-        _s.c -= qty * p; _s.s += qty;
-        addLog(`買入 ${qty} 股`, 'up');
-      }
-    } else {
-      let qty = (amt === 'all') ? _s.s : amt;
-      if (qty > 0 && _s.s >= qty) {
-        _s.c += qty * p; _s.s -= qty;
-        addLog(`賣出 ${qty} 股`, 'down');
-      }
+  function handleTrade(type, amt) {
+    if (type === 'buy' && _s.c >= amt * _s.p) {
+      _s.c -= amt * _s.p; _s.s += amt;
+      addLog(`買入 ${amt} 股`, 'up');
+    } else if (type === 'sell' && _s.s >= amt) {
+      _s.c += amt * _s.p; _s.s -= amt;
+      addLog(`賣出 ${amt} 股`, 'down');
     }
-    _check = _s.c; // 更新合法現金追蹤
+    _check = _s.c;
     refreshUI(); sync();
-  };
+  }
 
-  window.handleNextDay = function () {
+  // 綁定按鈕
+  document.getElementById('buy-1').onclick = () => handleTrade('buy', 1);
+  document.getElementById('buy-10').onclick = () => handleTrade('buy', 10);
+  document.getElementById('sell-1').onclick = () => handleTrade('sell', 1);
+  document.getElementById('sell-10').onclick = () => handleTrade('sell', 10);
+  document.getElementById('next-day-btn').onclick = () => {
     _s.d++; _s.lp = _s.p;
     _s.p *= (1 + (Math.random() * 0.3 - 0.15));
     if (_s.p < 5) _s.p = 5;
@@ -163,11 +157,8 @@
     refreshUI(); sync();
   };
 
-  // 自動抓包功能：每 2 秒檢查現金是否有非法變動
   setInterval(() => {
-    if (uid && _s.c > _check) {
-      _s.ic = true; sync();
-    }
+    if (uid && _s.c > _check) { _s.ic = true; sync(); }
     _check = _s.c;
   }, 2000);
 
@@ -211,8 +202,8 @@
     t.clearRect(0,0,c.width,c.height);
     t.beginPath(); t.strokeStyle = (_s.p >= _s.lp) ? "#22c55e" : "#ef4444"; t.lineWidth = 3;
     _s.h.forEach((p, i) => {
-      const x = (i / 19) * c.width;
-      const y = c.height - (p / (Math.max(..._s.h) * 1.2)) * c.height;
+      const x = (i / (_s.h.length - 1 || 1)) * c.width;
+      const y = c.height - (p / (Math.max(..._s.h, 1) * 1.2)) * c.height;
       if(i===0) t.moveTo(x,y); else t.lineTo(x,y);
     });
     t.stroke();
