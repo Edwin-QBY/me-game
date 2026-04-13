@@ -3,69 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - V2.2</title>
+    <title>投資模擬器 - 終極安全版</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
-        
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
-        
-        .security-tip { font-size: 11px; color: #94a3b8; text-align: left; margin: 15px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #f1c40f; }
-        .security-tip b { color: #f1c40f; }
-
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
         #stock-price { font-size: 32px; font-weight: 800; }
-        #stock-percent { font-size: 16px; font-weight: bold; }
         canvas { width: 100%; height: 150px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
-        
         .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
         .stat-box { background: #334155; padding: 8px; border-radius: 10px; }
-        .stat-label { font-size: 11px; color: #94a3b8; }
-        .stat-val { font-size: 15px; font-weight: bold; }
-
-        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; padding: 12px; border-radius: 10px; border:none; font-weight:bold; }
+        .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
-        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; color: white; padding: 10px; font-size: 13px; }
-        .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; }
+        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        .btn-reset { background: #475569; color: #cbd5e1; font-size: 11px; margin-top: 15px; width: 100%; opacity: 0.5; }
-
-        .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; border: 1px solid #334155; }
-        .list-title { font-size: 11px; color: #64748b; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 3px; font-weight: bold; }
-        .log-list { height: 100px; overflow-y: auto; font-size: 11px; font-family: monospace; }
-        .log-item { border-bottom: 1px dashed #222; padding: 4px 0; color: #cbd5e1; }
-        
-        #debug-log { font-size: 10px; color: #64748b; margin-top: 10px; text-align: left; background: #000; padding: 5px; border-radius: 5px; max-height: 50px; overflow-y: auto; }
-        .up { color: var(--up) !important; }
-        .down { color: var(--down) !important; }
+        .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 11px; }
+        .log-list { height: 80px; overflow-y: auto; font-family: monospace; }
+        .up { color: var(--up); }
+        .down { color: var(--down); }
     </style>
 </head>
 <body>
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h2 style="color:var(--blue); margin-top:0; margin-bottom:10px;">🎮 安全存取</h2>
+            <h2 style="color:var(--blue); margin-top:0;">🎮 投資模擬器</h2>
             <input type="text" id="username-input" placeholder="輸入玩家暱稱">
-            <input type="password" id="access-key-input" placeholder="輸入存取密鑰">
-            
-            <div class="security-tip">
-                <b>⚠️ 安全提示：</b><br>
-                數據將以加密模式同步至雲端。系統具備<b>反作弊監控</b>，任何異常數據將導致帳號被標記。
-            </div>
-
-            <button class="btn-next" style="margin-bottom:0;" onclick="startGame()">登入 / 註冊</button>
-            <div id="status-msg" style="color: #94a3b8; font-size: 11px; margin-top: 10px;">安全環境檢測中...</div>
-            <div id="debug-log">> 系統就緒</div>
+            <button class="btn-next" onclick="startGame()">開始遊戲 (安全加密模式)</button>
+            <div style="font-size: 11px; color: #94a3b8; margin-top:10px;">系統將自動鎖定您的專屬數據路徑</div>
         </div>
     </div>
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-bottom: 5px;">
-            <span id="conn-icon" style="color: #ef4444;">● 離線</span>
             <span id="player-display">玩家: ---</span>
             <span>DAY <b id="display-day">1</b></span>
         </div>
@@ -78,17 +53,11 @@
         <canvas id="game-chart"></canvas>
 
         <div class="stats">
-            <div class="stat-box">
-                <div class="stat-label">可用現金</div>
-                <div class="stat-val">$<span id="display-cash">1000</span></div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">持有股數</div>
-                <div class="stat-val"><span id="display-shares">0</span></div>
-            </div>
+            <div class="stat-box">現金: $<span id="display-cash">1000</span></div>
+            <div class="stat-box">持股: <span id="display-shares">0</span></div>
         </div>
 
-        <button class="btn-next" onclick="handleNextDay()">⏩ 進入下一天</button>
+        <button class="btn-next" onclick="handleNextDay()">進入下一天</button>
 
         <div class="trade-panel">
             <div class="trade-col">
@@ -104,21 +73,20 @@
         </div>
 
         <div class="list-container">
-            <div class="list-title">📋 交易日誌 (Log)</div>
+            <div style="color:#64748b; margin-bottom:5px;">📋 交易日誌</div>
             <div id="log-list" class="log-list"></div>
         </div>
 
         <div class="list-container">
-            <div class="list-title">🏆 財富排行</div>
-            <div id="rank-list" class="log-list" style="height: 80px;">載入中...</div>
+            <div style="color:#64748b; margin-bottom:5px;">🏆 財富排行</div>
+            <div id="rank-list" class="log-list"></div>
         </div>
-
-        <button class="btn-reset" onclick="resetGameData()">⚠️ 重置進度</button>
     </div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
   import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB8jlZ8rYpb6AQuqw5WQtYoRq2PKYMmXAU",
@@ -129,221 +97,123 @@
     appId: "1:776634078002:web:b9bd8e6ee9d8be52157d2b"
   };
 
-  let db = null;
-  let isSuspected = false;
-  let lastKnownCash = 1000; 
-  let g = { name: "", playerId: "", accessKey: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100], isCheater: false };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
 
-  function sysLog(msg) {
-    const el = document.getElementById("debug-log");
-    if(el) { el.innerText += "\n> " + msg; el.scrollTop = el.scrollHeight; }
-  }
-
-  function checkSanity(newCash, isSellingAction = false) {
-    if (newCash < 0 || g.shares < 0) return "負值數據異常";
-    if (g.day === 1 && (newCash + g.shares * g.price) > 3000) return "新帳號初始資金異常";
-    if (newCash > lastKnownCash && !isSellingAction) {
-        return "檢測到外部注入資金";
-    }
-    return null;
-  }
-
-  function markAsCheater(reason) {
-    if (!isSuspected) {
-        isSuspected = true;
-        g.isCheater = true;
-        alert(`⚠️ 安全警告：系統檢測到異常操作 (${reason})。你的帳號已被標記並列入監控名單。`);
-        sysLog(`作弊標記: ${reason}`);
-        syncToCloud();
-    }
-  }
-
-  function addTradeLog(msg, type) {
-    const list = document.getElementById("log-list");
-    if (!list) return;
-    const item = document.createElement("div");
-    item.className = "log-item";
-    const color = type === 'buy' ? 'var(--up)' : 'var(--down)';
-    item.innerHTML = `<span style="color:#64748b">[Day ${g.day}]</span> <span style="color:${color}">${msg}</span>`;
-    list.prepend(item);
-  }
-
-  try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    document.getElementById("status-msg").innerText = "加密防禦已啟動";
-    document.getElementById("conn-icon").innerText = "● 安全連線";
-    document.getElementById("conn-icon").style.color = "#22c55e";
-  } catch (e) {
-    sysLog("連線失敗");
-  }
+  // 加密變數名稱，讓對方在 Console 找不到目標
+  let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", ic: false };
+  let _check = 1000;
+  let uid = "";
 
   window.startGame = async function () {
-    const nameInput = document.getElementById("username-input").value.trim();
-    const keyInput = document.getElementById("access-key-input").value.trim();
-    
-    if (nameInput.length < 2) return alert("暱稱需至少 2 個字");
-    if (keyInput.length < 4) return alert("密鑰請至少設定 4 位數");
+    const name = document.getElementById("username-input").value.trim();
+    if (name.length < 2) return alert("暱稱太短");
 
-    g.name = nameInput;
-    g.playerId = encodeURIComponent(nameInput).toLowerCase();
-    g.accessKey = keyInput;
+    const user = await signInAnonymously(auth);
+    uid = user.user.uid;
 
-    if (db) {
-      try {
-        const ref = doc(db, "players", g.playerId);
-        const snap = await getDoc(ref);
-        
-        if (snap.exists()) {
-          const cloudData = snap.data();
-          if (cloudData.accessKey !== g.accessKey) {
-            return alert("暱稱已被佔用或密鑰錯誤！");
-          }
-          g.cash = Number(cloudData.cash) || 1000;
-          g.shares = Number(cloudData.shares) || 0;
-          g.day = Number(cloudData.day) || 1;
-          g.isCheater = cloudData.isCheater || false;
-          if (g.isCheater) isSuspected = true;
-          lastKnownCash = g.cash;
-        } else {
-          await syncToCloud();
-        }
-        startLeaderboard();
-      } catch (e) {
-        sysLog("數據載入異常");
-      }
+    const snap = await getDoc(doc(db, "players", uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      _s.c = data.cash; _s.s = data.shares; _s.d = data.day; _s.n = data.name; _s.ic = data.isCheater;
+    } else {
+      _s.n = name;
+      await sync();
     }
+    
+    _check = _s.c;
     document.getElementById("auth-overlay").style.display = "none";
-    updatePlayerDisplay();
+    startLeaderboard();
     refreshUI();
   };
 
-  function updatePlayerDisplay() {
-    const tag = isSuspected ? " <span style='color:red;'>(疑似作弊)</span>" : "";
-    document.getElementById("player-display").innerHTML = "玩家: " + g.name + tag;
+  async function sync() {
+    if (!uid) return;
+    await setDoc(doc(db, "players", uid), {
+      name: _s.n, cash: _s.c, shares: _s.s, day: _s.d, 
+      totalAsset: _s.c + (_s.s * _s.p), isCheater: _s.ic, lastUpdate: Date.now()
+    }, { merge: true });
   }
 
-  async function syncToCloud() {
-    if (!db || !g.playerId) return;
-    try {
-      const total = g.cash + (g.shares * g.price);
-      await setDoc(doc(db, "players", g.playerId), {
-        ...g, 
-        totalAsset: total, 
-        lastUpdate: Date.now(),
-        isCheater: isSuspected
-      }, { merge: true });
-    } catch (e) {}
+  window.handleTrade = function (type, amt) {
+    const p = _s.p;
+    if (type === 'buy') {
+      let qty = (amt === 'all') ? Math.floor(_s.c / p) : amt;
+      if (qty > 0 && _s.c >= qty * p) {
+        _s.c -= qty * p; _s.s += qty;
+        addLog(`買入 ${qty} 股`, 'up');
+      }
+    } else {
+      let qty = (amt === 'all') ? _s.s : amt;
+      if (qty > 0 && _s.s >= qty) {
+        _s.c += qty * p; _s.s -= qty;
+        addLog(`賣出 ${qty} 股`, 'down');
+      }
+    }
+    _check = _s.c; // 更新合法現金追蹤
+    refreshUI(); sync();
+  };
+
+  window.handleNextDay = function () {
+    _s.d++; _s.lp = _s.p;
+    _s.p *= (1 + (Math.random() * 0.3 - 0.15));
+    if (_s.p < 5) _s.p = 5;
+    _s.h.push(_s.p); if (_s.h.length > 20) _s.h.shift();
+    refreshUI(); sync();
+  };
+
+  // 自動抓包功能：每 2 秒檢查現金是否有非法變動
+  setInterval(() => {
+    if (uid && _s.c > _check) {
+      _s.ic = true; sync();
+    }
+    _check = _s.c;
+  }, 2000);
+
+  function addLog(msg, clr) {
+    const log = document.getElementById("log-list");
+    const div = document.createElement("div");
+    div.innerHTML = `<span style="color:#64748b">[D${_s.d}]</span> <span class="${clr}">${msg}</span>`;
+    log.prepend(div);
   }
 
   function startLeaderboard() {
-    const q = query(collection(db, "players"), orderBy("totalAsset", "desc"), limit(5));
-    onSnapshot(q, (snap) => {
-      let html = "";
-      snap.forEach((d) => {
-        const data = d.data();
-        const cheatTag = data.isCheater ? " <small style='color:red;'>[疑]</small>" : "";
-        html += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #222;">
-                  <span>${data.name}${cheatTag}</span><b>$${Math.floor(data.totalAsset || 0).toLocaleString()}</b>
-                </div>`;
+    onSnapshot(query(collection(db, "players"), orderBy("totalAsset", "desc"), limit(5)), (snap) => {
+      let h = "";
+      snap.forEach(d => {
+        const p = d.data();
+        h += `<div style="display:flex; justify-content:space-between;">
+                <span>${p.name}${p.isCheater ? '🚫' : ''}</span><b>$${Math.floor(p.totalAsset).toLocaleString()}</b>
+              </div>`;
       });
-      document.getElementById("rank-list").innerHTML = html || "暫無排行";
+      document.getElementById("rank-list").innerHTML = h;
     });
   }
 
-  window.handleNextDay = function () {
-    g.day++;
-    g.lastPrice = g.price;
-    const change = (Math.random() * 0.28 - 0.14) + ((100 - g.price) * 0.08) / 100;
-    g.price *= (1 + change);
-    if (g.price < 5) g.price = 5;
-    g.history.push(g.price);
-    if (g.history.length > 20) g.history.shift();
-    refreshUI();
-    syncToCloud();
-  };
-
-  window.handleTrade = function (type, amount) {
-    const price = g.price;
-    if (type === 'buy') {
-      let buyQty = (amount === 'all') ? Math.floor(g.cash / price) : amount;
-      if (buyQty > 0 && g.cash >= buyQty * price) {
-        g.cash -= buyQty * price;
-        g.shares += buyQty;
-        lastKnownCash = g.cash;
-        addTradeLog(`買入 ${buyQty} 股 ($${price.toFixed(2)})`, 'buy');
-      } else if (g.cash < price * (amount === 'all' ? 1 : amount)) {
-        alert("資金不足！");
-      }
-    } else {
-      let sellQty = (amount === 'all') ? g.shares : amount;
-      if (sellQty > 0 && g.shares >= sellQty) {
-        const income = sellQty * price;
-        const error = checkSanity(g.cash + income, true);
-        if (error) { markAsCheater(error); }
-        
-        g.cash += income;
-        g.shares -= sellQty;
-        lastKnownCash = g.cash;
-        addTradeLog(`賣出 ${sellQty} 股 ($${price.toFixed(2)})`, 'sell');
-      } else if (g.shares < (amount === 'all' ? 1 : amount)) {
-        alert("持股不足！");
-      }
-    }
-    refreshUI();
-    syncToCloud();
-  };
-
-  setInterval(() => {
-    if(g.playerId) {
-        const error = checkSanity(g.cash, false);
-        if (error) markAsCheater(error);
-    }
-  }, 2000);
-
-  window.resetGameData = async function() {
-    if(!confirm("確定要重置嗎？")) return;
-    g.cash = 1000; g.shares = 0; g.day = 1; g.price = 100; g.lastPrice = 100; g.history = [100];
-    lastKnownCash = 1000;
-    document.getElementById("log-list").innerHTML = "";
-    await syncToCloud();
-    refreshUI();
-  };
-
   function refreshUI() {
-    const priceEl = document.getElementById("stock-price");
-    const percentEl = document.getElementById("stock-percent");
-    if(!priceEl || !percentEl) return;
-
-    priceEl.innerText = g.price.toFixed(2);
-    document.getElementById("display-cash").innerText = Math.floor(g.cash).toLocaleString();
-    document.getElementById("display-shares").innerText = g.shares;
-    document.getElementById("display-day").innerText = g.day;
-    updatePlayerDisplay();
-
-    const diffPercent = ((g.price - g.lastPrice) / g.lastPrice) * 100;
-    percentEl.innerText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
-    const status = diffPercent >= 0 ? "up" : "down";
-    priceEl.className = status;
-    percentEl.className = status;
-    drawChart(status);
+    document.getElementById("display-cash").innerText = Math.floor(_s.c).toLocaleString();
+    document.getElementById("display-shares").innerText = _s.s;
+    document.getElementById("display-day").innerText = _s.d;
+    document.getElementById("stock-price").innerText = "$" + _s.p.toFixed(2);
+    const diff = ((_s.p - _s.lp) / _s.lp * 100).toFixed(2);
+    const pEl = document.getElementById("stock-percent");
+    pEl.innerText = (diff >= 0 ? "+" : "") + diff + "%";
+    pEl.className = diff >= 0 ? "up" : "down";
+    document.getElementById("player-display").innerText = "玩家: " + _s.n + (_s.ic ? " (異常)" : "");
+    drawChart();
   }
 
-  function drawChart(status) {
+  function drawChart() {
     const c = document.getElementById("game-chart");
-    if(!c) return;
     const t = c.getContext("2d");
     c.width = c.offsetWidth; c.height = c.offsetHeight;
-    const max = Math.max(...g.history, 110) * 1.1;
-    const min = Math.min(...g.history, 90) * 0.9;
-    t.clearRect(0, 0, c.width, c.height);
-    t.beginPath();
-    t.strokeStyle = (status === "up") ? "#22c55e" : "#ef4444";
-    t.lineWidth = 3; t.lineJoin = "round";
-    g.history.forEach((p, i) => {
-      const x = (i / (g.history.length - 1 || 1)) * (c.width - 40) + 20;
-      const y = c.height - ((p - min) / (max - min || 1)) * (c.height - 40) - 20;
-      if (i === 0) t.moveTo(x, y); else t.lineTo(x, y);
+    t.clearRect(0,0,c.width,c.height);
+    t.beginPath(); t.strokeStyle = (_s.p >= _s.lp) ? "#22c55e" : "#ef4444"; t.lineWidth = 3;
+    _s.h.forEach((p, i) => {
+      const x = (i / 19) * c.width;
+      const y = c.height - (p / (Math.max(..._s.h) * 1.2)) * c.height;
+      if(i===0) t.moveTo(x,y); else t.lineTo(x,y);
     });
     t.stroke();
   }
