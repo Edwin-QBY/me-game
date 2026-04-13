@@ -17,7 +17,7 @@
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; padding: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        .btn-reset { background: #475569; font-size: 11px; margin-top: 15px; padding: 5px 10px; opacity: 0.7; }
+        .btn-reset { background: #475569; font-size: 11px; margin-top: 15px; padding: 5px 10px; opacity: 0.7; border:none; border-radius:8px; color:white; cursor:pointer; }
         #stock-price { font-size: 32px; font-weight: 800; margin: 10px 0 0 0; }
         canvas { width: 100%; height: 120px; background: #000; border-radius: 10px; margin-bottom: 10px; }
         .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; font-size: 12px; }
@@ -31,10 +31,11 @@
     <div id="auth-overlay">
         <div class="auth-box">
             <h2 style="color:var(--blue); margin:0 0 10px 0;">🎮 帳號登入</h2>
-            <input type="text" id="username-input" placeholder="玩家暱稱 (至少2字)">
-            <input type="password" id="password-input" placeholder="登入密碼 (用於存檔驗證)">
-            <button class="btn-next" id="start-btn">開始遊戲</button>
-            <p style="font-size:11px; color:#94a3b8; margin:5px 0 0 0;">同名玩家需輸入正確密碼才能讀取</p>
+            <input type="text" id="username-input" placeholder="輸入玩家暱稱">
+            <input type="password" id="password-input" placeholder="輸入存檔密碼">
+            <button class="btn-next" id="start-btn">進入遊戲</button>
+            <p style="font-size:10px; color:#94a3b8; margin:5px 0 0 0;">同名玩家需輸入正確密碼才能讀取存檔</p>
+            <p style="font-size:10px; color:#ef4444; margin-top:10px;">⚠️ 提醒：此密碼僅用於簡單驗證，請勿使用重要密碼。</p>
         </div>
     </div>
 
@@ -60,17 +61,15 @@
             <div class="trade-col">
                 <button class="btn-buy" id="buy-1">買 1</button>
                 <button class="btn-buy" id="buy-10">買 10</button>
-                <button class="btn-buy" id="buy-all">全買</button>
-            </div>
+                <button class="btn-buy" id="buy-all">全買</button> </div>
             <div class="trade-col">
                 <button class="btn-sell" id="sell-1">賣 1</button>
                 <button class="btn-sell" id="sell-10">賣 10</button>
-                <button class="btn-sell" id="sell-all">全賣</button>
-            </div>
+                <button class="btn-sell" id="sell-all">全賣</button> </div>
         </div>
 
         <div class="list-container">
-            <div style="color:#64748b; margin-bottom:5px;">📋 交易日誌</div>
+            <div style="color:#64748b; margin-bottom:5px;">📋 交易日誌 (Log)</div>
             <div id="log-list" class="log-list"></div>
         </div>
 
@@ -104,29 +103,27 @@
   let _check = 1000;
   let uid = "";
 
+  // 登入邏輯：包含暱稱與密碼驗證
   document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
     const pass = document.getElementById("password-input").value.trim();
     if (name.length < 2) return alert("暱稱太短");
-    if (pass.length < 3) return alert("密碼至少需3位數");
+    if (pass.length < 3) return alert("密碼太短");
 
     try {
       const user = await signInAnonymously(auth);
       uid = user.user.uid;
 
-      // 檢查此暱稱是否已被使用
       const q = query(collection(db, "players"), where("name", "==", name));
       const querySnap = await getDocs(q);
       
-      let existingData = null;
-      querySnap.forEach(doc => { if(doc.data().name === name) existingData = doc.data(); });
+      let found = null;
+      querySnap.forEach(doc => { if(doc.data().name === name) found = doc.data(); });
 
-      if (existingData) {
-        if (existingData.pw !== pass) {
-          return alert("此暱稱已被使用，且密碼錯誤！請更換暱稱或輸入正確密碼。");
-        }
-        _s.c = existingData.cash; _s.s = existingData.shares; _s.d = existingData.day;
-        _s.n = existingData.name; _s.pw = existingData.pw; _s.ic = existingData.isCheater;
+      if (found) {
+        if (found.pw !== pass) return alert("暱稱已被使用且密碼錯誤！");
+        _s.c = found.cash; _s.s = found.shares; _s.d = found.day;
+        _s.n = found.name; _s.pw = found.pw; _s.ic = found.isCheater;
       } else {
         _s.n = name; _s.pw = pass;
         await sync();
@@ -137,8 +134,7 @@
       startLeaderboard();
       refreshUI();
     } catch (e) {
-      alert("系統忙碌中或配置錯誤");
-      console.error(e);
+      alert("連線失敗");
     }
   };
 
@@ -150,22 +146,17 @@
     }, { merge: true });
   }
 
+  // 交易邏輯：新增支援全買/全賣，日誌顯示成交價
   function handleTrade(type, mode) {
     const p = _s.p;
     if (type === 'buy') {
-      let amt = 0;
-      if (mode === 'all') amt = Math.floor(_s.c / p);
-      else amt = mode;
-      
+      let amt = (mode === 'all') ? Math.floor(_s.c / p) : mode;
       if (amt > 0 && _s.c >= amt * p) {
         _s.c -= amt * p; _s.s += amt;
         addLog(`買入 ${amt} 股 @ $${p.toFixed(2)}`, 'up');
       }
     } else {
-      let amt = 0;
-      if (mode === 'all') amt = _s.s;
-      else amt = mode;
-
+      let amt = (mode === 'all') ? _s.s : mode;
       if (amt > 0 && _s.s >= amt) {
         _s.c += amt * p; _s.s -= amt;
         addLog(`賣出 ${amt} 股 @ $${p.toFixed(2)}`, 'down');
@@ -191,7 +182,7 @@
   };
 
   document.getElementById('reset-btn').onclick = async () => {
-    if(confirm("確定要重置所有數據嗎？這無法還原！")){
+    if(confirm("重置將刪除所有數據，確定嗎？")){
         _s.c = 1000; _s.s = 0; _s.d = 1; _s.p = 100; _s.lp = 100; _s.h = [100];
         addLog("數據已重置", "up");
         refreshUI(); await sync();
@@ -199,7 +190,7 @@
   };
 
   setInterval(() => {
-    if (uid && _s.c > _check + 0.01) { _s.ic = true; sync(); }
+    if (uid && _s.c > _check + 0.1) { _s.ic = true; sync(); }
     _check = _s.c;
   }, 2000);
 
@@ -239,12 +230,13 @@
   function drawChart() {
     const c = document.getElementById("game-chart");
     const t = c.getContext("2d");
+    if (!c) return;
     c.width = c.offsetWidth; c.height = c.offsetHeight;
     t.clearRect(0,0,c.width,c.height);
     t.beginPath(); t.strokeStyle = (_s.p >= _s.lp) ? "#22c55e" : "#ef4444"; t.lineWidth = 3;
-    _s.h.forEach((p, i) => {
+    _s.h.forEach((val, i) => {
       const x = (i / (_s.h.length - 1 || 1)) * c.width;
-      const y = c.height - (p / (Math.max(..._s.h, 1) * 1.2)) * c.height;
+      const y = c.height - (val / (Math.max(..._s.h, 1) * 1.2)) * c.height;
       if(i===0) t.moveTo(x,y); else t.lineTo(x,y);
     });
     t.stroke();
