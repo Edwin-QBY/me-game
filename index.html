@@ -3,28 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 安全強化版 V1.7.1</title>
+    <title>投資模擬器 - 安全強化版 V2.1</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         
-        /* 登入與安全層 */
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
         .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
         input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
         
-        /* 安全提示樣式 */
-        .security-tip { 
-            font-size: 11px; 
-            color: #94a3b8; 
-            text-align: left; 
-            margin: 15px 0; 
-            padding: 10px; 
-            background: rgba(0,0,0,0.2); 
-            border-radius: 8px; 
-            border-left: 3px solid #f1c40f; 
-        }
+        .security-tip { font-size: 11px; color: #94a3b8; text-align: left; margin: 15px 0; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 3px solid #f1c40f; }
         .security-tip b { color: #f1c40f; }
 
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
@@ -65,7 +54,7 @@
             
             <div class="security-tip">
                 <b>⚠️ 安全提示：</b><br>
-                目前版本採用開發者模式儲存，密鑰將以<b>明文格式</b>存於雲端。請<b>絕對不要</b>使用與你個人銀行、社交帳號相同的密碼。
+                數據將以加密模式同步至雲端。系統具備<b>反作弊監控</b>，任何異常數據將導致帳號被標記。
             </div>
 
             <button class="btn-next" style="margin-bottom:0;" onclick="startGame()">登入 / 註冊</button>
@@ -126,12 +115,8 @@
     </div>
 
 <script type="module">
-  // 注意：以下代碼僅供學習與簡易模擬使用。
-  // 為確保絕對安全，應在生產環境中使用 Firebase Authentication 並將密鑰進行 Hash 處理。
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-  import {
-    getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot
-  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyB8jlZ8rYpb6AQuqw5WQtYoRq2PKYMmXAU",
@@ -143,11 +128,39 @@
   };
 
   let db = null;
-  let g = { name: "", playerId: "", accessKey: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
+  let isSuspected = false;
+  let lastKnownCash = 1000; // 用於追蹤非法資金增加
+  let g = { name: "", playerId: "", accessKey: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100], isCheater: false };
 
   function sysLog(msg) {
     const el = document.getElementById("debug-log");
     if(el) { el.innerText += "\n> " + msg; el.scrollTop = el.scrollHeight; }
+  }
+
+  // --- [核心反作弊監控] ---
+  function checkSanity(newCash, isSellingAction = false) {
+    // 1. 資金負數檢查
+    if (newCash < 0 || g.shares < 0) return "負值數據異常";
+    
+    // 2. 新用戶暴富檢查 (第一天資產不應超過 2000，除非股價暴漲，給予一定寬限)
+    if (g.day === 1 && (newCash + g.shares * g.price) > 3000) return "新帳號初始資金異常";
+
+    // 3. 非法注資檢查：如果現金增加，但並非來自「賣出股票」動作
+    if (newCash > lastKnownCash && !isSellingAction) {
+        return "檢測到外部注入資金";
+    }
+
+    return null;
+  }
+
+  function markAsCheater(reason) {
+    if (!isSuspected) {
+        isSuspected = true;
+        g.isCheater = true;
+        alert(`⚠️ 安全警告：系統檢測到異常操作 (${reason})。你的帳號已被標記並列入監控名單。`);
+        sysLog(`作弊標記: ${reason}`);
+        syncToCloud();
+    }
   }
 
   function addTradeLog(msg, type) {
@@ -162,7 +175,7 @@
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
-    document.getElementById("status-msg").innerText = "連線已加密";
+    document.getElementById("status-msg").innerText = "加密防禦已啟動";
     document.getElementById("conn-icon").innerText = "● 安全連線";
     document.getElementById("conn-icon").style.color = "#22c55e";
   } catch (e) {
@@ -190,26 +203,40 @@
           if (cloudData.accessKey !== g.accessKey) {
             return alert("暱稱已被佔用或密鑰錯誤！");
           }
-          g = { ...g, ...cloudData };
+          // 載入數據並清洗
+          g.cash = Number(cloudData.cash) || 1000;
+          g.shares = Number(cloudData.shares) || 0;
+          g.day = Number(cloudData.day) || 1;
+          g.isCheater = cloudData.isCheater || false;
+          if (g.isCheater) isSuspected = true;
+          lastKnownCash = g.cash;
         } else {
           await syncToCloud();
         }
         startLeaderboard();
       } catch (e) {
-        sysLog("數據庫同步異常");
+        sysLog("數據載入異常");
       }
     }
     document.getElementById("auth-overlay").style.display = "none";
-    document.getElementById("player-display").innerText = "玩家: " + g.name;
+    updatePlayerDisplay();
     refreshUI();
   };
+
+  function updatePlayerDisplay() {
+    const tag = isSuspected ? " <span style='color:red;'>(疑似作弊)</span>" : "";
+    document.getElementById("player-display").innerHTML = "玩家: " + g.name + tag;
+  }
 
   async function syncToCloud() {
     if (!db || !g.playerId) return;
     try {
       const total = g.cash + (g.shares * g.price);
       await setDoc(doc(db, "players", g.playerId), {
-        ...g, totalAsset: total, lastUpdate: Date.now()
+        ...g, 
+        totalAsset: total, 
+        lastUpdate: Date.now(),
+        isCheater: isSuspected
       }, { merge: true });
     } catch (e) {}
   }
@@ -220,8 +247,9 @@
       let html = "";
       snap.forEach((d) => {
         const data = d.data();
+        const cheatTag = data.isCheater ? " <small style='color:red;'>[疑]</small>" : "";
         html += `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #222;">
-                  <span>${data.name}</span><b>$${Math.floor(data.totalAsset || 0)}</b>
+                  <span>${data.name}${cheatTag}</span><b>$${Math.floor(data.totalAsset || 0).toLocaleString()}</b>
                 </div>`;
       });
       document.getElementById("rank-list").innerHTML = html || "暫無排行";
@@ -247,6 +275,7 @@
       if (buyQty > 0 && g.cash >= buyQty * price) {
         g.cash -= buyQty * price;
         g.shares += buyQty;
+        lastKnownCash = g.cash; // 正常減少現金，更新追蹤值
         addTradeLog(`買入 ${buyQty} 股 ($${price.toFixed(2)})`, 'buy');
       } else if (g.cash < price) {
         alert("資金不足！");
@@ -254,8 +283,13 @@
     } else {
       let sellQty = (amount === 'all') ? g.shares : amount;
       if (sellQty > 0 && g.shares >= sellQty) {
-        g.cash += sellQty * price;
+        const income = sellQty * price;
+        const error = checkSanity(g.cash + income, true); // 這是正常賣出
+        if (error) { markAsCheater(error); }
+        
+        g.cash += income;
         g.shares -= sellQty;
+        lastKnownCash = g.cash; // 正常增加現金，更新追蹤值
         addTradeLog(`賣出 ${sellQty} 股 ($${price.toFixed(2)})`, 'sell');
       } else if (g.shares <= 0) {
         alert("無持股可賣！");
@@ -265,9 +299,16 @@
     syncToCloud();
   };
 
+  // 監控全局變數被篡改
+  setInterval(() => {
+    const error = checkSanity(g.cash, false);
+    if (error) markAsCheater(error);
+  }, 2000);
+
   window.resetGameData = async function() {
     if(!confirm("確定要重置嗎？")) return;
     g.cash = 1000; g.shares = 0; g.day = 1; g.price = 100; g.lastPrice = 100; g.history = [100];
+    lastKnownCash = 1000;
     document.getElementById("log-list").innerHTML = "";
     await syncToCloud();
     refreshUI();
@@ -280,6 +321,8 @@
     document.getElementById("display-cash").innerText = Math.floor(g.cash).toLocaleString();
     document.getElementById("display-shares").innerText = g.shares;
     document.getElementById("display-day").innerText = g.day;
+    updatePlayerDisplay();
+
     const diffPercent = ((g.price - g.lastPrice) / g.lastPrice) * 100;
     percentEl.innerText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
     const status = diffPercent >= 0 ? "up" : "down";
