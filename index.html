@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 數據隔離穩定版</title>
+    <title>投資模擬器 - 數據隔離修復版</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; }
@@ -54,8 +54,8 @@
         <canvas id="game-chart"></canvas>
 
         <div style="background: #1e293b; border: 1px solid var(--blue); padding: 10px; border-radius: 10px; margin-bottom: 10px; text-align: left;">
-            <div style="color:var(--blue); font-size: 11px; font-weight:bold; margin-bottom:3px;">📰 市場情報</div>
-            <div id="news-text" style="font-size: 13px; color: #f8fafc;">等待開市...</div>
+            <div style="color:var(--blue); font-size: 11px; font-weight:bold; margin-bottom:3px;">📰 今日新聞</div>
+            <div id="news-text" style="font-size: 13px; color: #f8fafc;">股市運行中，請點擊下一天...</div>
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
@@ -69,12 +69,12 @@
             <div class="trade-col">
                 <button class="btn-buy" id="buy-1">買 1</button>
                 <button class="btn-buy" id="buy-10">買 10</button>
-                <button class="btn-buy" id="buy-all">全買</button>
+                <button class="btn-buy" id="buy-all">全部買入</button>
             </div>
             <div class="trade-col">
                 <button class="btn-sell" id="sell-1">賣 1</button>
                 <button class="btn-sell" id="sell-10">賣 10</button>
-                <button class="btn-sell" id="sell-all">全賣</button>
+                <button class="btn-sell" id="sell-all">全部賣出</button>
             </div>
         </div>
 
@@ -84,11 +84,11 @@
         </div>
 
         <div class="list-container">
-            <div style="color:#64748b; margin-bottom:5px;">🏆 財富排行</div>
+            <div style="color:#64748b; margin-bottom:5px;">🏆 財富排行榜</div>
             <div id="rank-list" class="log-list"></div>
         </div>
 
-        <button class="btn-reset" id="reset-btn">重置進度</button>
+        <button class="btn-reset" id="reset-btn">重置個人數據</button>
     </div>
 
 <script type="module">
@@ -109,75 +109,110 @@
   const db = getFirestore(app);
   const auth = getAuth(app);
 
+  // 初始化變數
   let _s = { c: 1000, s: 0, d: 1, p: 100, lp: 100, h: [100], n: "", pw: "", ic: false };
   let _check = 1000;
   let uid = ""; 
 
+  // 平衡後的市場新聞庫
   const newsLibrary = [
-    { t: "【利好】科技龍頭宣佈業績超預期！", mul: [0.15, 0.30] },
-    { t: "【利好】政府政策支持，市場資金充足。", mul: [0.10, 0.20] },
-    { t: "【利好】大機構進場抄底，股市反彈。", mul: [0.05, 0.15] },
-    { t: "【中性】市場消息平淡，股價微幅震盪。", mul: [-0.03, 0.05] },
-    { t: "【利空】全球經濟放緩，出口數據不佳。", mul: [-0.08, -0.15] },
-    { t: "【利空】突發地緣政治緊張，投資者撤資。", mul: [-0.12, -0.25] }
+    { t: "【利好】科技龍頭宣佈業績超預期，投資者信心大增！", mul: [0.12, 0.28] },
+    { t: "【利好】政府宣佈降息，市場資金異常充足，股市全面上漲。", mul: [0.08, 0.20] },
+    { t: "【利好】大機構分析師上調股票評級，認為當前被低估。", mul: [0.05, 0.15] },
+    { t: "【利空】全球供應鏈緊張，企業獲利可能下滑。", mul: [-0.05, -0.12] },
+    { t: "【利空】突發市場傳聞某大型基金撤資，引發小幅恐慌。", mul: [-0.10, -0.20] },
+    { t: "【中性】今日市場平淡，散戶大多選擇持股觀望。", mul: [-0.02, 0.05] }
   ];
 
+  // 登入按鈕點擊
   document.getElementById('start-btn').onclick = async () => {
     const name = document.getElementById("username-input").value.trim();
     const pass = document.getElementById("password-input").value.trim();
-    if (name.length < 2 || pass.length < 3) return alert("暱稱或密碼太短");
+    if (name.length < 2 || pass.length < 3) return alert("暱稱或密碼太短！");
 
     try {
-      const res = await signInAnonymously(auth);
-      const tempUid = res.user.uid;
+      // 1. 先處理登入，拿到一個暫時的 UID
+      const loginRes = await signInAnonymously(auth);
+      const tempUid = loginRes.user.uid;
 
-      // 嚴格查詢：只找對應暱稱的玩家
+      // 2. 到資料庫查找有沒有同名的玩家
       const q = query(collection(db, "players"), where("name", "==", name));
       const snap = await getDocs(q);
       
       let foundData = null;
-      let foundUid = "";
-      snap.forEach(d => { if(d.data().name === name) { foundData = d.data(); foundUid = d.id; } });
+      let targetUid = "";
+
+      snap.forEach(d => {
+        if(d.data().name === name) {
+          foundData = d.data();
+          targetUid = d.id; // 抓到該名字原本對應的真實 UID
+        }
+      });
 
       if (foundData) {
-        if (foundData.pw !== pass) return alert("密碼錯誤！");
-        uid = foundUid;
-        // 完全覆蓋本地變數，確保不被初始值重置
-        _s = { c: foundData.cash, s: foundData.shares, d: foundData.day, n: foundData.name, pw: foundData.pw, ic: foundData.isCheater, p: 100, lp: 100, h: [100] };
+        // --- 舊玩家登入流程 ---
+        if (foundData.pw !== pass) return alert("此暱稱已被使用，且密碼錯誤！");
+        
+        uid = targetUid; // 重要：鎖定舊的 UID
+        _s = { 
+          c: foundData.cash, 
+          s: foundData.shares, 
+          d: foundData.day, 
+          n: foundData.name, 
+          pw: foundData.pw, 
+          ic: foundData.isCheater,
+          p: 100, lp: 100, h: [100] // 每次登入重置當天股價
+        };
       } else {
+        // --- 新玩家註冊流程 ---
         uid = tempUid;
         _s.n = name; _s.pw = pass;
-        await sync(); // 僅在確定新玩家時才寫入初始值
+        _s.c = 1000; _s.s = 0; _s.d = 1; // 確保新玩家是真的從 1000 開始
+        await sync(); // 只有確定是新人才寫入第一次
       }
 
       document.getElementById("auth-overlay").style.display = "none";
       _check = _s.c;
       startLeaderboard();
       refreshUI();
-    } catch (e) { alert("連線錯誤"); }
+    } catch (e) {
+      alert("連線失敗，請檢查網路或 Firebase 配置。");
+    }
   };
 
+  // 同步函數：現在會精確寫入專屬 UID 的文檔
   async function sync() {
     if (!uid) return;
-    await setDoc(doc(db, "players", uid), {
-      name: _s.n, pw: _s.pw, cash: _s.c, shares: _s.s, day: _s.d, 
-      totalAsset: _s.c + (_s.s * _s.p), isCheater: _s.ic, lastUpdate: Date.now()
-    }, { merge: true });
+    try {
+      await setDoc(doc(db, "players", uid), {
+        name: _s.n, pw: _s.pw, cash: _s.c, shares: _s.s, day: _s.d, 
+        totalAsset: _s.c + (_s.s * _s.p), isCheater: _s.ic, lastUpdate: Date.now()
+      }, { merge: true });
+    } catch (err) { console.error("Sync Error:", err); }
   }
 
+  // 交易處理
   function handleTrade(type, mode) {
     const p = _s.p;
     let amt = 0;
     if (type === 'buy') {
       amt = (mode === 'all') ? Math.floor(_s.c / p) : mode;
-      if (amt > 0 && _s.c >= amt * p) { _s.c -= amt * p; _s.s += amt; addLog(`買入 ${amt} 股 @ $${p.toFixed(2)}`, 'up'); }
+      if (amt > 0 && _s.c >= amt * p) {
+        _s.c -= amt * p; _s.s += amt;
+        addLog(`買入 ${amt} 股 @ $${p.toFixed(2)}`, 'up');
+      }
     } else {
       amt = (mode === 'all') ? _s.s : mode;
-      if (amt > 0 && _s.s >= amt) { _s.c += amt * p; _s.s -= amt; addLog(`賣出 ${amt} 股 @ $${p.toFixed(2)}`, 'down'); }
+      if (amt > 0 && _s.s >= amt) {
+        _s.c += amt * p; _s.s -= amt;
+        addLog(`賣出 ${amt} 股 @ $${p.toFixed(2)}`, 'down');
+      }
     }
-    _check = _s.c; refreshUI(); sync();
+    _check = _s.c;
+    refreshUI(); sync();
   }
 
+  // 綁定按鈕事件
   document.getElementById('buy-1').onclick = () => handleTrade('buy', 1);
   document.getElementById('buy-10').onclick = () => handleTrade('buy', 10);
   document.getElementById('buy-all').onclick = () => handleTrade('buy', 'all');
@@ -185,25 +220,37 @@
   document.getElementById('sell-10').onclick = () => handleTrade('sell', 10);
   document.getElementById('sell-all').onclick = () => handleTrade('sell', 'all');
 
+  // 下一天按鈕
   document.getElementById('next-day-btn').onclick = () => {
     _s.d++; _s.lp = _s.p;
+    
+    // 抽取新聞並計算影響
     const news = newsLibrary[Math.floor(Math.random() * newsLibrary.length)];
     document.getElementById('news-text').innerText = news.t;
     const effect = Math.random() * (news.mul[1] - news.mul[0]) + news.mul[0];
-    _s.p *= (1 + effect); 
-    if (_s.p < 5) _s.p = 5 + Math.random()*5; // 底部反彈機制
-    _s.h.push(_s.p); if (_s.h.length > 20) _s.h.shift();
+    
+    _s.p *= (1 + effect);
+    // 平衡：防止股價無限下跌，跌到底部會有強力支撐
+    if (_s.p < 10) _s.p = 10 + Math.random() * 5; 
+    
+    _s.h.push(_s.p); 
+    if (_s.h.length > 20) _s.h.shift();
+    
     refreshUI(); sync();
   };
 
+  // 重置數據
   document.getElementById('reset-btn').onclick = async () => {
-    if(confirm("確定重置進度？")){ _s.c=1000;_s.s=0;_s.d=1;_s.p=100; refreshUI(); await sync(); }
+    if(confirm("重置將刪除你的所有進度，確定嗎？")){
+      _s.c = 1000; _s.s = 0; _s.d = 1; _s.p = 100;
+      refreshUI(); await sync();
+    }
   };
 
   function addLog(msg, clr) {
     const log = document.getElementById("log-list");
     const div = document.createElement("div");
-    div.innerHTML = `<span style="color:#64748b">[D${_s.d}]</span> <span class="${clr}">${msg}</span>`;
+    div.innerHTML = `<span style="color:#64748b">[Day ${_s.d}]</span> <span class="${clr}">${msg}</span>`;
     log.prepend(div);
   }
 
@@ -212,7 +259,9 @@
       let h = "";
       snap.forEach(d => {
         const p = d.data();
-        h += `<div style="display:flex; justify-content:space-between;"><span>${p.name}</span><b>$${Math.floor(p.totalAsset).toLocaleString()}</b></div>`;
+        h += `<div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                <span>${p.name}</span><b>$${Math.floor(p.totalAsset).toLocaleString()}</b>
+              </div>`;
       });
       document.getElementById("rank-list").innerHTML = h;
     });
@@ -223,7 +272,7 @@
     document.getElementById("display-shares").innerText = _s.s;
     document.getElementById("display-day").innerText = _s.d;
     document.getElementById("stock-price").innerText = "$" + _s.p.toFixed(2);
-    const diff = ((_s.p - _s.lp) / _s.lp * 100).toFixed(2);
+    const diff = (((_s.p - _s.lp) / _s.lp) * 100).toFixed(2);
     const pEl = document.getElementById("stock-percent");
     pEl.innerText = (diff >= 0 ? "+" : "") + diff + "%";
     pEl.className = diff >= 0 ? "up" : "down";
