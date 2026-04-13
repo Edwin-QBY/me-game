@@ -55,7 +55,44 @@
             <div style="background:#334155; padding:10px; border-radius:10px;">持股: <span id="display-shares">0</span></div>
         </div>
 
-        <button class="btn-next" id="next-day-btn">⏩ 進入下一天</button>
+        <div class="list-container" style="background: #1e293b; border: 1px solid var(--blue);">
+    <div style="color:var(--blue); font-weight:bold; margin-bottom:5px;">📰 今日頭條</div>
+    <div id="news-text" style="font-size: 14px; color: #f8fafc; font-style: italic;">歡迎來到股市，點擊下一天開始獲取新聞...</div>
+</div>
+        
+// 定義新聞庫：type 為影響方向，mul 為倍率範圍
+const newsLibrary = [
+    { t: "科技巨頭發佈新款 AI 晶片，板塊全線大漲！", type: "up", mul: [0.1, 0.25] },
+    { t: "央行宣佈降息，市場資金湧入股市。", type: "up", mul: [0.05, 0.15] },
+    { t: "知名財經專家表示：當前股市被嚴重低估。", type: "up", mul: [0.02, 0.1] },
+    { t: "爆發全球性病毒危機，投資者恐慌拋售。", type: "down", mul: [-0.15, -0.3] },
+    { t: "某大型交易所遭到黑客攻擊，資金流失嚴重。", type: "down", mul: [-0.1, -0.2] },
+    { t: "政府宣佈加稅，企業獲利預期下降。", type: "down", mul: [-0.05, -0.1] },
+    { t: "今日市場平淡，投資者正在觀望。", type: "neutral", mul: [-0.02, 0.02] }
+];
+
+document.getElementById('next-day-btn').onclick = () => {
+    _s.d++; 
+    _s.lp = _s.p;
+
+    // 隨機抽選一則新聞
+    const news = newsLibrary[Math.floor(Math.random() * newsLibrary.length)];
+    document.getElementById('news-text').innerText = news.t;
+
+    // 根據新聞計算漲跌幅度
+    const [min, max] = news.mul;
+    const effect = Math.random() * (max - min) + min;
+    
+    _s.p *= (1 + effect); // 根據新聞倍率改變股價
+    if (_s.p < 5) _s.p = 5;
+
+    // 更新走勢圖數據
+    _s.h.push(_s.p); 
+    if (_s.h.length > 20) _s.h.shift();
+
+    refreshUI(); 
+    sync();
+};
 
         <div class="trade-panel">
             <div class="trade-col">
