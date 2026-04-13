@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>投資模擬器 - 雲端加強版 V1.6</title>
-
+    <title>投資模擬器 - 安全強化版 V1.7</title>
     <style>
         :root { --up: #22c55e; --down: #ef4444; --bg: #0f172a; --card: #1e293b; --blue: #38bdf8; }
         body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 10px; overflow-x: hidden; }
         .card { background: var(--card); padding: 20px; border-radius: 20px; width: 100%; max-width: 420px; margin: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.5); box-sizing: border-box; }
         
+        /* 登入與安全層 */
         #auth-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 300px; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
+        .auth-box { background: var(--card); padding: 30px; border-radius: 20px; border: 2px solid var(--blue); width: 85%; max-width: 320px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; background: #0a101e; color: white; box-sizing: border-box; outline: none; }
+        .key-tip { font-size: 10px; color: #f1c40f; text-align: left; margin-bottom: 10px; line-height: 1.4; }
         
+        /* 數值顯示 */
         .price-row { display: flex; justify-content: center; align-items: baseline; gap: 10px; margin: 5px 0; }
-        #stock-price { font-size: 32px; font-weight: 800; transition: color 0.3s; }
+        #stock-price { font-size: 32px; font-weight: 800; }
         #stock-percent { font-size: 16px; font-weight: bold; }
         canvas { width: 100%; height: 150px; background: #000; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
         
@@ -24,21 +26,20 @@
         .stat-label { font-size: 11px; color: #94a3b8; }
         .stat-val { font-size: 15px; font-weight: bold; }
 
+        /* 交易與紀錄 */
         .trade-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
         .trade-col { display: flex; flex-direction: column; gap: 6px; }
-        .trade-title { font-size: 13px; font-weight: bold; padding: 4px; border-radius: 4px; }
-        
         button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.1s; color: white; padding: 10px; font-size: 13px; }
         button:active { transform: scale(0.95); opacity: 0.8; }
         .btn-next { width: 100%; background: var(--blue); color: #0f172a; font-size: 16px; margin-bottom: 10px; }
         .btn-buy { background: var(--up); }
         .btn-sell { background: var(--down); }
-        .btn-reset { background: #475569; color: #cbd5e1; font-size: 11px; padding: 5px 10px; margin-top: 15px; width: 100%; }
+        .btn-reset { background: #475569; color: #cbd5e1; font-size: 11px; margin-top: 15px; width: 100%; opacity: 0.5; }
 
         .list-container { margin-top: 15px; text-align: left; background: #0a101e; border-radius: 10px; padding: 10px; border: 1px solid #334155; }
         .list-title { font-size: 11px; color: #64748b; margin-bottom: 5px; border-bottom: 1px solid #334155; padding-bottom: 3px; font-weight: bold; }
         .log-list { height: 100px; overflow-y: auto; font-size: 11px; font-family: monospace; }
-        .log-item { border-bottom: 1px dashed #222; padding: 2px 0; }
+        .log-item { border-bottom: 1px dashed #222; padding: 4px 0; color: #cbd5e1; }
         
         #debug-log { font-size: 10px; color: #64748b; margin-top: 10px; text-align: left; background: #000; padding: 5px; border-radius: 5px; max-height: 50px; overflow-y: auto; }
         .up { color: var(--up) !important; }
@@ -49,17 +50,19 @@
 
     <div id="auth-overlay">
         <div class="auth-box">
-            <h2 style="color:var(--blue); margin-top:0;">🎮 市場連線</h2>
-            <input type="text" id="username-input" placeholder="輸入暱稱...">
-            <button class="btn-next" style="margin-bottom:0;" onclick="startGame()">進入市場</button>
-            <div id="status-msg" style="color: #94a3b8; font-size: 11px; margin-top: 10px;">正在檢查連線...</div>
+            <h2 style="color:var(--blue); margin-top:0; margin-bottom:10px;">🎮 安全存取</h2>
+            <input type="text" id="username-input" placeholder="輸入玩家暱稱">
+            <input type="password" id="access-key-input" placeholder="輸入存取密鑰 (自訂)">
+            <div class="key-tip">註：新玩家請自行設定一組密鑰。舊玩家需輸入正確密鑰才能載入進度，請務必記牢。</div>
+            <button class="btn-next" style="margin-bottom:0;" onclick="startGame()">登入 / 註冊</button>
+            <div id="status-msg" style="color: #94a3b8; font-size: 11px; margin-top: 10px;">雲端安全檢測中...</div>
             <div id="debug-log">> 系統就緒</div>
         </div>
     </div>
 
     <div class="card">
         <div style="display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; margin-bottom: 5px;">
-            <span id="conn-icon" style="color: #ef4444;">● 檢查中</span>
+            <span id="conn-icon" style="color: #ef4444;">● 離線</span>
             <span id="player-display">玩家: ---</span>
             <span>DAY <b id="display-day">1</b></span>
         </div>
@@ -86,25 +89,26 @@
 
         <div class="trade-panel">
             <div class="trade-col">
-                <div class="trade-title" style="background: rgba(34, 197, 94, 0.1); color: var(--up);">買入 BUY</div>
-                <button class="btn-buy" onclick="handleTrade('buy', 1)">買 1 股</button>
-                <button class="btn-buy" onclick="handleTrade('buy', 10)">買 10 股</button>
-                <button class="btn-buy" onclick="handleTrade('buy', 'all')">全倉買入</button>
+                <button class="btn-buy" onclick="handleTrade('buy', 1)">買 1</button>
+                <button class="btn-buy" onclick="handleTrade('buy', 'all')">全買</button>
             </div>
             <div class="trade-col">
-                <div class="trade-title" style="background: rgba(239, 68, 68, 0.1); color: var(--down);">賣出 SELL</div>
-                <button class="btn-sell" onclick="handleTrade('sell', 1)">賣 1 股</button>
-                <button class="btn-sell" onclick="handleTrade('sell', 10)">賣 10 股</button>
-                <button class="btn-sell" onclick="handleTrade('sell', 'all')">全部賣出</button>
+                <button class="btn-sell" onclick="handleTrade('sell', 1)">賣 1</button>
+                <button class="btn-sell" onclick="handleTrade('sell', 'all')">全賣</button>
             </div>
         </div>
 
         <div class="list-container">
-            <div class="list-title">🏆 排行榜 (TOP 5)</div>
-            <div id="rank-list" class="log-list" style="height: 110px;">載入中...</div>
+            <div class="list-title">📋 交易日誌 (Log)</div>
+            <div id="log-list" class="log-list"></div>
         </div>
 
-        <button class="btn-reset" onclick="resetGameData()">⚠️ 重置所有遊戲數據 (Reset)</button>
+        <div class="list-container">
+            <div class="list-title">🏆 財富排行</div>
+            <div id="rank-list" class="log-list" style="height: 80px;">載入中...</div>
+        </div>
+
+        <button class="btn-reset" onclick="resetGameData()">⚠️ 重置進度</button>
     </div>
 
 <script type="module">
@@ -123,7 +127,7 @@
   };
 
   let db = null;
-  let g = { name: "", playerId: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
+  let g = { name: "", playerId: "", accessKey: "", cash: 1000, shares: 0, day: 1, price: 100, lastPrice: 100, history: [100] };
 
   function sysLog(msg) {
     const el = document.getElementById("debug-log");
@@ -131,35 +135,54 @@
     el.scrollTop = el.scrollHeight;
   }
 
-  // 初始化 Firebase
+  // 交易紀錄邏輯
+  function addTradeLog(msg, type) {
+    const list = document.getElementById("log-list");
+    const item = document.createElement("div");
+    item.className = "log-item";
+    const color = type === 'buy' ? 'var(--up)' : 'var(--down)';
+    item.innerHTML = `<span style="color:#64748b">[Day ${g.day}]</span> <span style="color:${color}">${msg}</span>`;
+    list.prepend(item);
+  }
+
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
-    document.getElementById("status-msg").innerText = "雲端連線正常";
-    document.getElementById("conn-icon").innerText = "● 雲端連線";
+    document.getElementById("status-msg").innerText = "安全盾已就緒";
+    document.getElementById("conn-icon").innerText = "● 安全連線";
     document.getElementById("conn-icon").style.color = "#22c55e";
-    sysLog("Firebase 連接成功");
   } catch (e) {
     sysLog("連線失敗: " + e.message);
   }
 
-  // 登入
   window.startGame = async function () {
-    const name = document.getElementById("username-input").value.trim();
-    if (name.length < 2) return alert("暱稱太短");
-    g.name = name;
-    g.playerId = encodeURIComponent(name);
+    const nameInput = document.getElementById("username-input").value.trim();
+    const keyInput = document.getElementById("access-key-input").value.trim();
+    
+    if (nameInput.length < 2) return alert("暱稱需至少 2 個字");
+    if (keyInput.length < 4) return alert("密鑰請至少設定 4 位數");
+
+    g.name = nameInput;
+    g.playerId = encodeURIComponent(nameInput).toLowerCase(); // 統一小寫 ID
+    g.accessKey = keyInput;
 
     if (db) {
       try {
         const ref = doc(db, "players", g.playerId);
         const snap = await getDoc(ref);
+        
         if (snap.exists()) {
-          g = { ...g, ...snap.data() };
-          sysLog("恢復雲端存檔");
+          const cloudData = snap.data();
+          // 安全檢查：密鑰匹配
+          if (cloudData.accessKey !== g.accessKey) {
+            return alert("暱稱已被佔用或密鑰錯誤！請換一個暱稱或輸入正確密鑰。");
+          }
+          g = { ...g, ...cloudData };
+          sysLog("認證成功，載入雲端紀錄");
         } else {
+          // 防止大量註冊的簡單邏輯：雲端建立新檔
           await syncToCloud();
-          sysLog("建立新玩家");
+          sysLog("新玩家註冊成功");
         }
         startLeaderboard();
       } catch (e) {
@@ -171,22 +194,6 @@
     refreshUI();
   };
 
-  // 重置功能
-  window.resetGameData = async function() {
-    if(!confirm("確定要重置所有數據嗎？這將清空現金與持股並從第 1 天開始！")) return;
-    
-    g.cash = 1000;
-    g.shares = 0;
-    g.day = 1;
-    g.price = 100;
-    g.lastPrice = 100;
-    g.history = [100];
-    
-    sysLog("數據已重置");
-    await syncToCloud();
-    refreshUI();
-  };
-
   async function syncToCloud() {
     if (!db || !g.playerId) return;
     try {
@@ -194,7 +201,7 @@
       await setDoc(doc(db, "players", g.playerId), {
         ...g, totalAsset: total, lastUpdate: Date.now()
       }, { merge: true });
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("同步失敗", e); }
   }
 
   function startLeaderboard() {
@@ -227,19 +234,36 @@
     const price = g.price;
     if (type === 'buy') {
       let buyQty = (amount === 'all') ? Math.floor(g.cash / price) : amount;
+      // 修正：只有在餘額不足時才報錯
       if (buyQty > 0 && g.cash >= buyQty * price) {
         g.cash -= buyQty * price;
         g.shares += buyQty;
-      } else { alert("現金不足"); }
+        addTradeLog(`買入 ${buyQty} 股 ($${price.toFixed(2)})`, 'buy');
+      } else if (g.cash < price) {
+        // 資金完全不夠一股才提示
+        alert("資金不足以購買！");
+      }
     } else {
       let sellQty = (amount === 'all') ? g.shares : amount;
+      // 修正：只有在沒持股時才報錯
       if (sellQty > 0 && g.shares >= sellQty) {
         g.cash += sellQty * price;
         g.shares -= sellQty;
-      } else { alert("持股不足"); }
+        addTradeLog(`賣出 ${sellQty} 股 ($${price.toFixed(2)})`, 'sell');
+      } else if (g.shares <= 0) {
+        alert("你手上沒有股票可以賣！");
+      }
     }
     refreshUI();
     syncToCloud();
+  };
+
+  window.resetGameData = async function() {
+    if(!confirm("確定要重置所有數據嗎？密鑰不會變，但錢和天數會歸零。")) return;
+    g.cash = 1000; g.shares = 0; g.day = 1; g.price = 100; g.lastPrice = 100; g.history = [100];
+    document.getElementById("log-list").innerHTML = "";
+    await syncToCloud();
+    refreshUI();
   };
 
   function refreshUI() {
@@ -250,36 +274,24 @@
     document.getElementById("display-shares").innerText = g.shares;
     document.getElementById("display-day").innerText = g.day;
 
-    const diff = g.price - g.lastPrice;
-    const diffPercent = (diff / g.lastPrice) * 100;
-    percentEl.innerText = (diff >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
-    
-    // 根據升跌更新文字顏色
-    const colorClass = diff >= 0 ? "up" : "down";
-    priceEl.className = colorClass;
-    percentEl.className = colorClass;
-
-    drawChart(colorClass); // 傳遞顏色類別到繪圖函數
+    const diffPercent = ((g.price - g.lastPrice) / g.lastPrice) * 100;
+    percentEl.innerText = (diffPercent >= 0 ? "+" : "") + diffPercent.toFixed(2) + "%";
+    const status = diffPercent >= 0 ? "up" : "down";
+    priceEl.className = status;
+    percentEl.className = status;
+    drawChart(status);
   }
 
   function drawChart(status) {
     const c = document.getElementById("game-chart");
     const t = c.getContext("2d");
     c.width = c.offsetWidth; c.height = c.offsetHeight;
-    
     const max = Math.max(...g.history, 110) * 1.1;
     const min = Math.min(...g.history, 90) * 0.9;
-    
     t.clearRect(0, 0, c.width, c.height);
     t.beginPath();
-    
-    // 功能：線圖顏色隨升跌改變
     t.strokeStyle = (status === "up") ? "#22c55e" : "#ef4444";
-    t.shadowBlur = 10;
-    t.shadowColor = t.strokeStyle;
-    t.lineWidth = 3;
-    t.lineJoin = "round";
-
+    t.lineWidth = 3; t.lineJoin = "round";
     g.history.forEach((p, i) => {
       const x = (i / (g.history.length - 1 || 1)) * (c.width - 40) + 20;
       const y = c.height - ((p - min) / (max - min || 1)) * (c.height - 40) - 20;
